@@ -24,7 +24,7 @@
 #define TCP_LISTENER 1
 
 //Max TCP Buffer
-#define MAX_NETWORK_BUFFER 65536 // 2^16 bytes
+#define MAX_NETWORK_BUFFER 65535 // 2^16 bytes
 
 
 #endif
