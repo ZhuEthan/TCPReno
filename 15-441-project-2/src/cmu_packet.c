@@ -21,49 +21,52 @@
  *  http://telescript.denayer.wenk.be/~hcr/cn/idoceo/tcp_header.html
  *
  */
-char *set_headers(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
-                  uint16_t hlen, uint16_t plen, uint8_t flags,
-                  uint16_t adv_window, uint16_t ext, char *ext_data) {
+char* set_headers(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
+    uint16_t hlen, uint16_t plen, uint8_t flags, uint32_t adv_window, 
+    uint16_t ext, char* ext_data){
 
-  char *msg;
+  char* msg;
   uint16_t temp16;
-  uint32_t temp32;
-  int index = 0;
-  msg = (char *)calloc(plen, sizeof(char));
+    uint32_t temp32;
+    int index = 0;
+    msg = (char*) calloc(plen, sizeof(char));
 
-  temp32 = htonl(IDENTIFIER);
-  memcpy(msg, &temp32, SIZE32);
-  index += SIZE32;
-  temp16 = htons(src);
-  memcpy(msg + index, &temp16, SIZE16);
-  index += SIZE16;
-  temp16 = htons(dst);
-  memcpy(msg + index, &temp16, SIZE16);
-  index += SIZE16;
-  temp32 = htonl(seq);
-  memcpy(msg + index, &temp32, SIZE32);
-  index += SIZE32;
-  temp32 = htonl(ack);
-  memcpy(msg + index, &temp32, SIZE32);
-  index += SIZE32;
-  temp16 = htons(hlen);
-  memcpy(msg + index, &temp16, SIZE16);
-  index += SIZE16;
-  temp16 = htons(plen);
-  memcpy(msg + index, &temp16, SIZE16);
-  index += SIZE16;
-  memcpy(msg + index, &flags, SIZE8);
-  index += SIZE8;
-  temp16 = htonl(adv_window);
-  memcpy(msg + index, &temp16, SIZE16);
-  index += SIZE16;
+    temp32 = htonl(IDENTIFIER);
+    memcpy(msg, &temp32, SIZE32);
+    index += SIZE32;
+    temp16 = htons(src);
+    memcpy(msg+index, &temp16, SIZE16);
+    index += SIZE16;
+    temp16 = htons(dst);
+    memcpy(msg+index, &temp16, SIZE16);
+    index += SIZE16;
+    temp32 = htonl(seq);
+    memcpy(msg+index, &temp32, SIZE32);
+    index += SIZE32;
+    temp32 = htonl(ack);
+    memcpy(msg+index, &temp32, SIZE32);
+    index += SIZE32;
+    temp16 = htons(hlen);
+    memcpy(msg+index, &temp16, SIZE16);
+    index += SIZE16;
+    temp16 = htons(plen);
+    memcpy(msg+index, &temp16, SIZE16);
+    index += SIZE16;
+    memcpy(msg+index, &flags, SIZE8);
+    index += SIZE8;
+    temp32 = htons(adv_window);
+    memcpy(msg+index, &temp32, SIZE32);
+    index += SIZE32;
 
-  temp16 = htons(ext);
-  memcpy(msg + index, &temp16, SIZE16);
-  index += SIZE16;
 
-  if (ext > 0)
-    memcpy(msg + index, ext_data, ext);
+    temp16 = htons(ext);
+    memcpy(msg+index, &temp16, SIZE16);
+    index += SIZE16;
+
+
+    if(ext > 0)
+        memcpy(msg+index, ext_data, ext);
+
 
   return msg;
 }
@@ -77,22 +80,21 @@ char *set_headers(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
  *  of the packet.
  *
  */
-char *packet_to_buf(cmu_packet_t *p) {
-  char *msg =
-      set_headers(p->header.source_port, p->header.destination_port,
-                  p->header.seq_num, p->header.ack_num, p->header.hlen,
-                  p->header.plen, p->header.flags, p->header.advertised_window,
-                  p->header.extension_length, p->header.extension_data);
+char* packet_to_buf(cmu_packet_t* p){
+    char* msg = set_headers(p->header.source_port, p->header.destination_port, 
+        p->header.seq_num, p->header.ack_num, p->header.hlen, p->header.plen, 
+        p->header.flags, p->header.advertised_window, 
+        p->header.extension_length, p->header.extension_data);
 
-  if (p->header.extension_length > 0)
-    memcpy(msg + (DEFAULT_HEADER_LEN), p->header.extension_data,
-           p->header.extension_length);
+    if(p->header.extension_length > 0)
+        memcpy(msg+(DEFAULT_HEADER_LEN), p->header.extension_data, 
+            p->header.extension_length);
 
-  if (p->header.plen > p->header.hlen)
-    memcpy(msg + (p->header.hlen), p->data,
-           (p->header.plen - (p->header.hlen)));
+    if(p->header.plen > p->header.hlen)
+        memcpy(msg+(p->header.hlen), p->data, (p->header.plen - (p->header.hlen)));
 
-  return msg;
+
+    return msg;
 }
 
 /*
@@ -114,34 +116,35 @@ char *packet_to_buf(cmu_packet_t *p) {
  * Return: Returns the packet structure containing the provided information.
  *
  */
-cmu_packet_t *create_packet(uint16_t src, uint16_t dst, uint32_t seq,
-                            uint32_t ack, uint16_t hlen, uint16_t plen,
-                            uint8_t flags, uint16_t adv_window, uint16_t ext,
-                            char *ext_data, char *data, int len) {
+cmu_packet_t* create_packet(uint16_t src, uint16_t dst, uint32_t seq, 
+    uint32_t ack, uint16_t hlen, uint16_t plen, uint8_t flags, 
+    uint32_t adv_window, uint16_t ext, char* ext_data, char* data, int len){
 
-  cmu_packet_t *new = malloc(sizeof(cmu_packet_t));
+    cmu_packet_t* new = malloc(sizeof(cmu_packet_t));
 
-  new->header.identifier = IDENTIFIER;
-  new->header.source_port = src;
-  new->header.destination_port = dst;
-  new->header.seq_num = seq;
-  new->header.ack_num = ack;
-  new->header.hlen = hlen;
-  new->header.plen = plen;
-  new->header.flags = flags;
-  new->header.advertised_window = adv_window;
-  new->header.extension_length = ext;
-  if (ext > 0) {
-    new->header.extension_data = malloc(ext);
-    memcpy(new->header.extension_data, ext_data, ext);
-  } else
-    new->header.extension_data = NULL;
-  if (len > 0) {
-    new->data = malloc(len);
-    new->data = memcpy(new->data, data, len);
-  } else
-    new->data = NULL;
-  return new;
+    new->header.identifier = IDENTIFIER;
+    new->header.source_port = src;
+    new->header.destination_port = dst;
+    new->header.seq_num = seq;
+    new->header.ack_num = ack;
+    new->header.hlen = hlen;
+    new->header.plen = plen;
+    new->header.flags = flags;
+    new->header.advertised_window = adv_window;
+    new->header.extension_length = ext;
+    if(ext > 0){
+        new->header.extension_data = malloc(ext);
+        memcpy(new->header.extension_data, ext_data, ext);
+    }
+    else
+        new->header.extension_data = NULL;
+    if(len > 0){
+        new->data = malloc(len);
+        new->data = memcpy(new->data, data, len);
+    }
+    else
+        new->data = NULL;
+    return new;
 }
 
 /*
@@ -158,28 +161,26 @@ cmu_packet_t *create_packet(uint16_t src, uint16_t dst, uint32_t seq,
  * Param: data - Data attribute of packet
  * Param: len - Length of the data attribute
  *
- * Purpose: To construct the buffer representation of a packet with the given
- * information.
+ * Purpose: To construct the buffer representation of a packet with the given information.
  *
  * Return: Returns a buffer of length plen, that contains the information
  *  of the packet.
  *
  */
-char *create_packet_buf(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
-                        uint16_t hlen, uint16_t plen, uint8_t flags,
-                        uint16_t adv_window, uint16_t ext, char *ext_data,
-                        char *data, int len) {
+char* create_packet_buf(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
+    uint16_t hlen, uint16_t plen, uint8_t flags, uint32_t adv_window, 
+    uint16_t ext, char* ext_data, char* data, int len){
 
-  cmu_packet_t *temp;
-  char *final;
+    cmu_packet_t* temp;
+    char* final;  
 
-  temp = create_packet(src, dst, seq, ack, hlen, plen, flags, adv_window, ext,
-                       ext_data, data, len);
+    temp = create_packet(src, dst, seq, ack, hlen, plen, flags, adv_window, 
+        ext, ext_data, data, len);
 
-  final = packet_to_buf(temp);
+    final = packet_to_buf(temp);
 
-  free_packet(temp);
-  return final;
+    free_packet(temp);
+    return final;
 }
 
 /*
@@ -188,12 +189,12 @@ char *create_packet_buf(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
  * Purpose: To cleanup state preserved in the packet
  *
  */
-void free_packet(cmu_packet_t *packet) {
-  if (packet->data != NULL)
-    free(packet->data);
-  if (packet->header.extension_data != NULL)
-    free(packet->header.extension_data);
-  free(packet);
+void free_packet(cmu_packet_t* packet){
+    if(packet->data != NULL)
+         free(packet->data);
+    if(packet->header.extension_data != NULL)
+        free(packet->header.extension_data);
+    free(packet);
 }
 
 /*
@@ -204,11 +205,11 @@ void free_packet(cmu_packet_t *packet) {
  * Return: The source port of the packet
  *
  */
-uint16_t get_src(char *msg) {
-  int offset = 4;
-  uint16_t var;
-  memcpy(&var, msg + offset, SIZE16);
-  return ntohs(var);
+uint16_t get_src(char* msg){
+    int offset = 4;
+    uint16_t var;
+    memcpy(&var, msg+offset, SIZE16);
+    return ntohs(var);
 }
 
 /*
@@ -219,11 +220,11 @@ uint16_t get_src(char *msg) {
  * Return: The destination port of the packet
  *
  */
-uint16_t get_dst(char *msg) {
-  int offset = 6;
-  uint16_t var;
-  memcpy(&var, msg + offset, SIZE16);
-  return ntohs(var);
+uint16_t get_dst(char* msg){
+    int offset = 6;
+    uint16_t var;
+    memcpy(&var, msg+offset, SIZE16);
+    return ntohs(var);
 }
 
 /*
@@ -234,11 +235,11 @@ uint16_t get_dst(char *msg) {
  * Return: The sequence number of the packet
  *
  */
-uint32_t get_seq(char *msg) {
-  int offset = 8;
-  uint32_t var;
-  memcpy(&var, msg + offset, SIZE32);
-  return ntohl(var);
+uint32_t get_seq(char* msg){
+    int offset = 8;
+    uint32_t var;
+    memcpy(&var, msg+offset, SIZE32);
+    return ntohl(var);
 }
 
 /*
@@ -249,11 +250,11 @@ uint32_t get_seq(char *msg) {
  * Return: The acknowledgment number of the packet
  *
  */
-uint32_t get_ack(char *msg) {
-  int offset = 12;
-  uint32_t var;
-  memcpy(&var, msg + offset, SIZE32);
-  return ntohl(var);
+uint32_t get_ack(char* msg){
+    int offset = 12;
+    uint32_t var;
+    memcpy(&var, msg+offset, SIZE32);
+    return ntohl(var);
 }
 
 /*
@@ -264,11 +265,11 @@ uint32_t get_ack(char *msg) {
  * Return: The header length of the packet
  *
  */
-uint16_t get_hlen(char *msg) {
-  int offset = 16;
-  uint16_t var;
-  memcpy(&var, msg + offset, SIZE16);
-  return ntohs(var);
+uint16_t get_hlen(char* msg){
+    int offset = 16;
+    uint16_t var;
+    memcpy(&var, msg+offset, SIZE16);
+    return ntohs(var);
 }
 
 /*
@@ -279,11 +280,11 @@ uint16_t get_hlen(char *msg) {
  * Return: The packet length of the packet
  *
  */
-uint16_t get_plen(char *msg) {
-  int offset = 18;
-  uint16_t var;
-  memcpy(&var, msg + offset, SIZE16);
-  return ntohs(var);
+uint16_t get_plen(char* msg){
+    int offset = 18;
+    uint16_t var;
+    memcpy(&var, msg+offset, SIZE16);
+    return ntohs(var);
 }
 
 /*
@@ -294,11 +295,11 @@ uint16_t get_plen(char *msg) {
  * Return: The flags of the packet
  *
  */
-uint8_t get_flags(char *msg) {
-  int offset = 20;
-  uint8_t var;
-  memcpy(&var, msg + offset, SIZE8);
-  return var;
+uint8_t get_flags(char* msg){
+    int offset = 20;
+    uint8_t var;
+    memcpy(&var, msg+offset, SIZE8);
+    return var;
 }
 
 /*
@@ -309,11 +310,11 @@ uint8_t get_flags(char *msg) {
  * Return: The advertised window of the packet
  *
  */
-uint16_t get_advertised_window(char *msg) {
-  int offset = 21;
-  uint16_t var;
-  memcpy(&var, msg + offset, SIZE16);
-  return ntohl(var);
+uint32_t get_advertised_window(char* msg){
+    int offset = 21;
+    uint32_t var;
+    memcpy(&var, msg+offset, SIZE32);
+    return ntohs(var);
 }
 
 /*
@@ -324,9 +325,9 @@ uint16_t get_advertised_window(char *msg) {
  * Return: The extension length of the packet
  *
  */
-uint16_t get_extension_length(char *msg) {
-  int offset = 23;
-  uint16_t var;
-  memcpy(&var, msg + offset, SIZE16);
-  return ntohs(var);
+uint16_t get_extension_length(char* msg){
+    int offset = 25;
+    uint16_t var;
+    memcpy(&var, msg+offset, SIZE16);
+    return ntohs(var);
 }
