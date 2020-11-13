@@ -9,7 +9,7 @@ OBJS = $(BUILD_DIR)/cmu_packet.o \
 	$(BUILD_DIR)/backend.o
 
 default:all
-all: server client testing_server
+all: server client sender receiver testing_server
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(FLAGS) -c -o $@ $<
@@ -19,6 +19,12 @@ server: $(OBJS)
 
 client: $(OBJS)
 	$(CC) $(FLAGS) $(SRC_DIR)/client.c -o client $(OBJS)
+
+sender: $(OBJS)
+	$(CC) $(FLAGS) $(SRC_DIR)/sender.c -o sender $(OBJS)
+
+receiver: $(OBJS)
+	$(CC) $(FLAGS) $(SRC_DIR)/receiver.c -o receiver $(OBJS)
 
 testing_server: $(OBJ)
 	$(CC) $(FLAGS) tests/testing_server.c -o tests/testing_server $(OBJS)
@@ -32,5 +38,5 @@ test:
 	sudo python3 tests/test_cp2.py
 
 clean:
-	-rm -f $(BUILD_DIR)/*.o peer client server
+	-rm -f $(BUILD_DIR)/*.o peer client server sender receiver
 	-rm tests/testing_server

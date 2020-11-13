@@ -54,7 +54,7 @@ char *set_headers(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
   index += SIZE16;
   memcpy(msg + index, &flags, SIZE8);
   index += SIZE8;
-  temp16 = htons(adv_window);
+  temp16 = htonl(adv_window);
   memcpy(msg + index, &temp16, SIZE16);
   index += SIZE16;
 
@@ -313,7 +313,7 @@ uint16_t get_advertised_window(char *msg) {
   int offset = 21;
   uint16_t var;
   memcpy(&var, msg + offset, SIZE16);
-  return ntohs(var);
+  return ntohl(var);
 }
 
 /*
