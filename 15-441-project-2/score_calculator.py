@@ -45,12 +45,17 @@ class CMUTCP(Packet):
     def answers(self, other):
         return isinstance(other, CMUTCP) and not (ICMP in other) and not (ICMP in self)
 
+bind_layers(UDP, CMUTCP)
+
 def get_cmu(pkt):
-    if pkt is None or Raw not in pkt:
-        return None
-    try: 
-        return CMUTCP(pkt[Raw])
-    except:
+    if CMUTCP in pkt:
+        return pkt[CMUTCP]
+    elif Raw in pkt:
+        try:
+            return CMUTCP(pkt[Raw])
+        except:
+            return None
+    else:
         return None
 
 def silent_call(command):
@@ -134,11 +139,11 @@ def main():
     else:
         print("Reliably transfered files")
 
-    tput_441 = 20.0/time_completed_441
-    tput_641 = 20.0/time_completed_641
+    tput_441 = 20.0/time_completed_441 * 8
+    tput_641 = 20.0/time_completed_641 * 8
 
-    print("441 Throughput: " + str(tput_441) + " MBps")
-    print("641 Throughput: " + str(tput_641) + " MBps")
+    print("441 Throughput: " + str(tput_441) + " Mbps")
+    print("641 Throughput: " + str(tput_641) + " Mbps")
 
     jfi = get_jfi([tput_441, tput_641])
     avg_tput =  (tput_441 + tput_641)/2.
