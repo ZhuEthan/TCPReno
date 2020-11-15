@@ -4,7 +4,7 @@ Setup:
     Edit your Makefile to compile both sender.c and receiver.c
 
 Running score calculator:
-    On server VM run: (./reciever 441 &) && (./receiver 641 &) 
+    On server VM run: (./receiver 441 &) && (./receiver 641 &) 
     On client VM run: sudo python3 score_calculator.py
 
 Manually removing executables:
