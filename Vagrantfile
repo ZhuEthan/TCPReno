@@ -6,12 +6,12 @@ $INSTALL_BASE = <<SCRIPT
   sudo apt-get install -y build-essential vim emacs
   sudo add-apt-repository ppa:jonathonf/python-2.7
   sudo apt-get update
-  sudo apt-get install python2.7
+  sudo apt-get install python2
   sudo apt-get install -y python-pip
 
   sudo add-apt-repository ppa:deadsnakes/ppa
   sudo apt-get update
-  sudo apt-get install python3.6
+  sudo apt-get install -y python3.6
   sudo apt-get install -y python3-pip
 
   sudo apt-get install -y git gdb valgrind python-dev libffi-dev libssl-dev
@@ -53,19 +53,19 @@ $INSTALL_OPENSSL = <<SCRIPT
 SCRIPT
 
 Vagrant.configure(2) do |config|
-  config.vm.box = "ubuntu/xenial64"
+  config.vm.box = "ubuntu/focal64"
   config.ssh.forward_agent = true
   config.vm.provision "shell", inline: $INSTALL_BASE
   config.vm.provision "shell", inline: $INSTALL_IPERF
-  config.vm.provision "shell", inline: $INSTALL_OPENSSL
+  # config.vm.provision "shell", inline: $INSTALL_OPENSSL
   config.vm.synced_folder "15-441-project-2", "/vagrant/15-441-project-2"
-  # config.vm.provider "virtualbox" do |vb|
-  #   # Display the VirtualBox GUI when booting the machine
-  #   vb.gui = true
-  #
-  #   # Customize the amount of memory on the VM:
-  #   vb.memory = "1024"
-  # end
+  config.vm.provider "virtualbox" do |vb|
+     # Display the VirtualBox GUI when booting the machine
+     vb.gui = true
+  
+     # Customize the amount of memory on the VM:
+     vb.memory = "1024"
+  end
 
   config.vm.define :client, primary: true do |host|
     host.vm.hostname = "client"
