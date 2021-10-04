@@ -35,7 +35,7 @@ format:
 
 test:
 	sudo python3 tests/test_cp1.py
-	sudo python3 tests/test_cp2.py
+	# sudo python3 tests/test_cp2.py
 
 clean:
 	-rm -f $(BUILD_DIR)/*.o peer client server sender receiver
