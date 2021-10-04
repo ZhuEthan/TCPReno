@@ -141,15 +141,15 @@ def test_run_server_client():
 
     failed = False
 
-    with Connection(host=TESTING_HOST_IP, user='vagrant', connect_kwargs={'password':'vagrant'}) as conn:
+    with Connection(host=IP_ADDRS['server'], user='vagrant', connect_kwargs={'password':'vagrant'}) as conn:
         try:
             conn.run('pwd')
             conn.run(start_client_cmd)
             conn.run('tmux has-session -t pytest_client')
-            conn.local(start_server_cmd)
-            conn.local('tmux has-session -t pytest_server')
+            conn.run(start_server_cmd)
+            conn.run('tmux has-session -t pytest_server')
             # exit when server finished receiving file
-            conn.local('while tmux has-session -t pytest_server; do sleep 1; done')
+            conn.run('while tmux has-session -t pytest_server; do sleep 1; done')
         except:
             failed = True
         finally:
