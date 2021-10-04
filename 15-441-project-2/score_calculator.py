@@ -1,8 +1,14 @@
+#!/bin/python3
 #------------------------------------------------#
 #   score_calculator.py                          #
 #                                                #
 #   Calculates JFI and throughput for multiple   #
 #   TCP connections                              #
+#                                                #
+#   Run the following on the server VM:          #
+#   $ ./receiver 441 &                           #
+#   $ ./receiver 641 &                           #
+#   $ sudo ./score_calculator.py                 #
 #                                                #
 #   Kartik Chitturi <kchittur@andrew.cmu.edu>    #
 #------------------------------------------------#
@@ -102,7 +108,7 @@ def main():
 
     sniffer = AsyncSniffer(iface='enp0s8')
     sniffer.start()
-    print("Run both receivers on client VM")
+    print("Run both receivers on server VM")
 
     while True:
         s = silent_call('tmux has-session -t sender441')

@@ -53,11 +53,9 @@ SYN_MASK = 0x8
 TIMEOUT = 3
 
 """
-These tests assume there is only one connection in the PCAP
-and expects the PCAP to be collected on the server.
-All of the basic tests pass on the starter code, without
-you having to make any changes. You will need to change these
-tests as you add functionality to your implementation.
+You will need to add to these tests as you add functionality to your
+implementation. It is also important to understand what the given tests
+are testing for!
 """
 
 # we can make CMUTCP packets using scapy

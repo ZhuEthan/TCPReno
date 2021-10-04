@@ -1,3 +1,4 @@
+#!/bin/python3
 from scapy.all import *
 import matplotlib.pyplot as plt
 
@@ -44,4 +45,4 @@ for packet in packets:
 #https://matplotlib.org/users/pyplot_tutorial.html for how to format and make a good quality graph.
 print(packet_list)
 plt.scatter(times, packet_list)
-plt.show()
+plt.savefig("graph.png")
