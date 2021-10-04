@@ -3,69 +3,27 @@
 
 $INSTALL_BASE = <<SCRIPT
   sudo apt-get update
-  sudo apt-get install -y build-essential vim emacs
-  sudo add-apt-repository ppa:jonathonf/python-2.7
-  sudo apt-get update
-  sudo apt-get install python2
-  sudo apt-get install -y python-pip
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential vim emacs tree tmux git gdb valgrind python-dev libffi-dev libssl-dev clang-format iperf3 tshark
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python python3-pip python-tk
 
-  sudo add-apt-repository ppa:deadsnakes/ppa
-  sudo apt-get update
-  sudo apt-get install -y python3.6
-  sudo apt-get install -y python3-pip
-
-  sudo apt-get install -y git gdb valgrind python-dev libffi-dev libssl-dev
-  sudo DEBIAN_FRONTEND=noninteractive apt-get -y install tshark
-  sudo pip install --upgrade pip
-  sudo pip install tcconfig
-  sudo pip install scapy
-  sudo pip install pytest==4.6.5
-  sudo pip install fabric
-  sudo pip install typing
-  sudo pip install cryptography
-  sudo pip3 install --upgrade pip
-  sudo pip3 install scapy
-  sudo pip3 install matplotlib
-  pip3 install pytest
-  pip3 install fabric
-  sudo apt-get install -y python-tk
-  sudo apt install -y clang-format
-SCRIPT
-
-$INSTALL_IPERF = <<SCRIPT
-  wget  https://github.com/esnet/iperf/archive/3.6.tar.gz
-  tar -xvzf 3.6.tar.gz
-  cd iperf-3*
-  ./configure && make && sudo make install
-  sudo apt-get -y remove lib32z1
-  sudo apt-get -y install lib32z1
-  cd ..
-  sudo rm -r iperf-3* 3.6.tar.gz
-SCRIPT
-
-$INSTALL_OPENSSL = <<SCRIPT
-  wget https://www.openssl.org/source/old/1.1.0/openssl-1.1.0g.tar.gz
-  tar -xzvf openssl-1.1.0g.tar.gz
-  cd openssl-1.1.0g
-  ./config && make && sudo make install
-  cd ..
-  sudo rm -r *openssl-1.1.0g*
+  pip install --upgrade pip
+  pip install tcconfig scapy fabric typing cryptography scapy matplotlib pytest fabric
 SCRIPT
 
 Vagrant.configure(2) do |config|
   config.vm.box = "ubuntu/focal64"
   config.ssh.forward_agent = true
   config.vm.provision "shell", inline: $INSTALL_BASE
-  config.vm.provision "shell", inline: $INSTALL_IPERF
-  # config.vm.provision "shell", inline: $INSTALL_OPENSSL
   config.vm.synced_folder "15-441-project-2", "/vagrant/15-441-project-2"
-  config.vm.provider "virtualbox" do |vb|
-     # Display the VirtualBox GUI when booting the machine
-     vb.gui = true
-  
-     # Customize the amount of memory on the VM:
-     vb.memory = "1024"
-  end
+  # config.vm.provider "virtualbox" do |vb|
+  #    # Display the VirtualBox GUI when booting the machine
+  #    #   Username: vagrant
+  #    #   0Password: vagrant
+  #   
+  #    vb.gui = true
+  #    # Customize the amount of memory on the VM:
+  #    vb.memory = "1024"
+  # end
 
   config.vm.define :client, primary: true do |host|
     host.vm.hostname = "client"
