@@ -30,6 +30,8 @@ The following files have been provided for you:
 
 * `gen_graph.py`: Takes in a PCAP file and generates a graph. Feel free to modify this file to profile Reno and your algorithm in CP2 and CP3.
 
+* `tcp.lua`: A Lua plugin that allows Wireshark to decode CMU-TCP headers. Copy the file to the directory described in <https://www.wireshark.org/docs/wsug_html_chunked/ChPluginFolders.html> to use the plugin.
+
 * `test_cp1.py`: Test script for CP1 that is executed with `make test`. You should add your own tests to this file.
 
 * `test_cp2.py`: Test script for CP2 that can be executed with `make test`. You should add your own tests to this file.
