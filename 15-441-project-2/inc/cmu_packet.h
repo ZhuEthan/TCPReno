@@ -23,7 +23,7 @@ typedef struct {
 	uint16_t hlen;				//2 bytes
 	uint16_t plen;				//2 bytes
 	uint8_t flags;				//1 byte
-	uint32_t advertised_window; //4 bytes
+	uint16_t advertised_window; //2 bytes
 	uint16_t extension_length;  //2 bytes
 	char* extension_data;	    //X bytes
 } cmu_header_t;
@@ -40,19 +40,19 @@ typedef struct {
 #define ACK_FLAG_MASK 0x4
 #define FIN_FLAG_MASK 0x2
 #define IDENTIFIER 15441
-#define DEFAULT_HEADER_LEN 27
+#define DEFAULT_HEADER_LEN 25
 
 
 char* set_headers(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
-    uint16_t hlen, uint16_t plen, uint8_t flags, uint32_t adv_window, 
+    uint16_t hlen, uint16_t plen, uint8_t flags, uint16_t adv_window, 
     uint16_t ext, char* ext_data);
 
 cmu_packet_t* create_packet(uint16_t src, uint16_t dst, uint32_t seq, 
     uint32_t ack, uint16_t hlen, uint16_t plen, uint8_t flags, 
-    uint32_t adv_window, uint16_t ext, char* ext_data, char* data, int len);
+    uint16_t adv_window, uint16_t ext, char* ext_data, char* data, int len);
 
 char* create_packet_buf(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
-    uint16_t hlen, uint16_t plen, uint8_t flags, uint32_t adv_window, 
+    uint16_t hlen, uint16_t plen, uint8_t flags, uint16_t adv_window, 
     uint16_t ext, char* ext_data, char* data, int len);
 
 char* packet_to_buf(cmu_packet_t* packet);
@@ -66,7 +66,7 @@ uint32_t get_ack(char* msg);
 uint16_t get_hlen(char* msg);
 uint16_t get_plen(char* msg);
 uint8_t get_flags(char* msg);
-uint32_t get_advertised_window(char* msg);
+uint16_t get_advertised_window(char* msg);
 uint16_t get_extension_length(char* msg);
 
 

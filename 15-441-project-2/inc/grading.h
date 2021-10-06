@@ -1,6 +1,12 @@
 #ifndef _GRADING_H_
 #define _GRADING_H_
 
+/*
+ * DO NOT CHANGE THIS FILE
+ * This contains the variables for your TCP implementation
+ * and we will replace this file during the autolab testing with new variables.
+ */
+
 //window variables
 #define WINDOW_INITIAL_WINDOW_SIZE 1
 #define WINDOW_INITIAL_SSTHRESH 64
@@ -9,7 +15,7 @@
 
 
 //packet lengths
-#define MAX_DLEN 1373
+#define MAX_DLEN 1375
 #define MAX_LEN 1400
 
 //socket types

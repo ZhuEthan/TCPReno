@@ -22,7 +22,7 @@
  *
  */
 char* set_headers(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
-    uint16_t hlen, uint16_t plen, uint8_t flags, uint32_t adv_window, 
+    uint16_t hlen, uint16_t plen, uint8_t flags, uint16_t adv_window, 
     uint16_t ext, char* ext_data){
 
   char* msg;
@@ -54,9 +54,9 @@ char* set_headers(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
     index += SIZE16;
     memcpy(msg+index, &flags, SIZE8);
     index += SIZE8;
-    temp32 = htonl(adv_window);
-    memcpy(msg+index, &temp32, SIZE32);
-    index += SIZE32;
+    temp16 = htons(adv_window);
+    memcpy(msg+index, &temp16, SIZE16);
+    index += SIZE16;
 
 
     temp16 = htons(ext);
@@ -118,7 +118,7 @@ char* packet_to_buf(cmu_packet_t* p){
  */
 cmu_packet_t* create_packet(uint16_t src, uint16_t dst, uint32_t seq, 
     uint32_t ack, uint16_t hlen, uint16_t plen, uint8_t flags, 
-    uint32_t adv_window, uint16_t ext, char* ext_data, char* data, int len){
+    uint16_t adv_window, uint16_t ext, char* ext_data, char* data, int len){
 
     cmu_packet_t* new = malloc(sizeof(cmu_packet_t));
 
@@ -168,7 +168,7 @@ cmu_packet_t* create_packet(uint16_t src, uint16_t dst, uint32_t seq,
  *
  */
 char* create_packet_buf(uint16_t src, uint16_t dst, uint32_t seq, uint32_t ack,
-    uint16_t hlen, uint16_t plen, uint8_t flags, uint32_t adv_window, 
+    uint16_t hlen, uint16_t plen, uint8_t flags, uint16_t adv_window, 
     uint16_t ext, char* ext_data, char* data, int len){
 
     cmu_packet_t* temp;
@@ -310,11 +310,11 @@ uint8_t get_flags(char* msg){
  * Return: The advertised window of the packet
  *
  */
-uint32_t get_advertised_window(char* msg){
+uint16_t get_advertised_window(char* msg){
     int offset = 21;
-    uint32_t var;
-    memcpy(&var, msg+offset, SIZE32);
-    return ntohl(var);
+    uint16_t var;
+    memcpy(&var, msg+offset, SIZE16);
+    return ntohs(var);
 }
 
 /*
@@ -326,7 +326,7 @@ uint32_t get_advertised_window(char* msg){
  *
  */
 uint16_t get_extension_length(char* msg){
-    int offset = 25;
+    int offset = 23;
     uint16_t var;
     memcpy(&var, msg+offset, SIZE16);
     return ntohs(var);

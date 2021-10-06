@@ -66,15 +66,15 @@ class CMUTCP(Packet):
                  ShortField("destination_port",TESTING_HOST_PORT),
                  IntField("seq_num",0),
                  IntField("ack_num",0),
-                 ShortField("hlen",27),
-                 ShortField("plen",27),
+                 ShortField("hlen",25),
+                 ShortField("plen",25),
                  ByteEnumField("flags" , 0,
                                { FIN_MASK: "FIN",
                                  ACK_MASK: "ACK" ,
                                  SYN_MASK: "SYN" ,
                                  FIN_MASK | ACK_MASK: "FIN ACK",
                                  SYN_MASK | ACK_MASK: "SYN ACK"} ),
-                 IntField("advertised_window",1),
+                 ShortField("advertised_window",1),
                  ShortField("extension_length",0),
                  StrLenField("extension_data", None,
                              length_from=lambda pkt: pkt.extension_length)]
@@ -99,7 +99,7 @@ def test_sequence_number():
             try:
                 conn.run(START_TESTING_SERVER_CMD)
                 conn.run('tmux has-session -t pytest_server')
-                syn_pkt = eth/ip/udp/CMUTCP(plen=27, seq_num=1000, flags=SYN_MASK)
+                syn_pkt = eth/ip/udp/CMUTCP(plen=25, seq_num=1000, flags=SYN_MASK)
                 syn_ack_pkt = srp1(syn_pkt, timeout=TIMEOUT, iface=IFNAME)
                 
                 if (syn_ack_pkt is None or 
@@ -112,7 +112,7 @@ def test_sequence_number():
                 
                 print(syn_ack_pkt[CMUTCP].seq_num)
                 
-                ack_pkt = eth/ip/udp/CMUTCP(plen=27, seq_num=1001, ack_num=syn_ack_pkt[CMUTCP].seq_num + 1, flags=ACK_MASK)
+                ack_pkt = eth/ip/udp/CMUTCP(plen=25, seq_num=1001, ack_num=syn_ack_pkt[CMUTCP].seq_num + 1, flags=ACK_MASK)
                 empty_pkt = srp1(ack_pkt, timeout=0.5, iface=IFNAME)
 
                 if empty_pkt is not None:
@@ -121,7 +121,7 @@ def test_sequence_number():
                     conn.run(STOP_TESTING_SERVER_CMD)
                     return
 
-                data_pkt = eth/ip/udp/CMUTCP(plen=27 + len(payload), 
+                data_pkt = eth/ip/udp/CMUTCP(plen=25 + len(payload), 
                                              seq_num=1001, 
                                              ack_num=syn_ack_pkt[CMUTCP].seq_num + 1, 
                                              flags=ACK_MASK)/Raw(load=payload)
