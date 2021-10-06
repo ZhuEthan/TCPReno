@@ -24,7 +24,11 @@ The following files have been provided for you:
 
 * `Vagrantfile`: Defines the structure, IP addresses, and dependencies in the virtual machines. Feel free to modify this file to add any additional testing tools as you see fit. Remember to document your changes in `tests.txt`!
 
-* `gen_graph.py`: Takes in a PCAP file and generates a graph. In CP3, you should modify this file to profile Reno and your algorithm.
+* `README`: A description of your files, as well as your algorithm in CP3.
+
+* `tests.txt`: A brief writeup describing your testing strategy, and any tools you used in the process of testing.
+
+* `gen_graph.py`: Takes in a PCAP file and generates a graph. Feel free to modify this file to profile Reno and your algorithm in CP2 and CP3.
 
 * `test_cp1.py`: Test script for CP1 that is executed with `make test`. You should add your own tests to this file.
 
