@@ -31,7 +31,7 @@ function tcp.dissector(tvb, pInfo, root) -- Tvb, Pinfo, TreeItem
    local f = t:add(f_flags, tvb(20,1))
    t:add(f_advertised_window, tvb(21,2))
    t:add(f_extension_length, tvb(23,2))
-   local extension_length = tvb(23,2):int()
+   local extension_length = tvb(23,1):int()
    t:add(f_extension_data, tvb(25,extension_length))
 
 
