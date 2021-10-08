@@ -35,10 +35,6 @@ The following files have been provided for you:
 * `test_cp1.py`: Test script for CP1 that is executed with `make test`. You should add your own tests to this file.
 
 * `test_cp2.py`: Test script for CP2 that can be executed with `make test`. You should add your own tests to this file.
-
-* `score_calculator.py`: Score calculator for your custom congestion control algorithm in CP3. See the comments in the file and `cp3_instructions.txt` for more details on its usage.
-
-* `cp3_instructions.txt`: Some further instructions on running `score_calculator.py` for CP3.
     
 * `grading.h`: These are variables that we will use to test your implementation. We will be replacing this file when running tests, and hence you should test your implementation with different values. 
 
