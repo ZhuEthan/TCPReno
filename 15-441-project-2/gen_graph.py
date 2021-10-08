@@ -45,4 +45,4 @@ for packet in packets:
 #https://matplotlib.org/users/pyplot_tutorial.html for how to format and make a good quality graph.
 print(packet_list)
 plt.scatter(times, packet_list)
-plt.savefig("graph.png")
+plt.savefig("graph.pdf")
