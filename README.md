@@ -59,3 +59,12 @@ The following files have been provided for you:
     * Advertised Window		    [2 bytes]
     * Extension length		    [2 bytes]
     * Extension Data		    [You Decide]
+
+## Troubleshooting
+If you get the following error while running `vagrant up` during the "Mounting shared folders..." phase that looks like the one below:
+
+```
+Vagrant was unable to mount VirtualBox shared folders. This is usually because the filesystem "vboxsf" is not available. This filesystem is made available via the VirtualBox Guest Additions and kernel module. Please verify that these guest additions are properly installed in the guest. This is not a bug in Vagrant and is usually caused by a faulty Vagrant box.
+```
+
+Run `vagrant plugin install vagrant-vbguest` - see [@981](https://piazza.com/class/kq8ahgin2v126f?cid=281) on Piazza
