@@ -46,7 +46,7 @@ int cmu_socket(cmu_socket_t * dst, int flag, int port, char * serverIP){
 
 
   switch(flag){
-    case(TCP_INITATOR):
+    case(TCP_INITIATOR):
       if(serverIP == NULL){
         perror("ERROR serverIP NULL");
         return EXIT_ERROR;

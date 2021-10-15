@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     portno = (unsigned short)atoi(serverport);
 
 
-    if(cmu_socket(&socket, TCP_INITATOR, portno, serverip) < 0)
+    if(cmu_socket(&socket, TCP_INITIATOR, portno, serverip) < 0)
         exit(EXIT_FAILURE);
     
     functionality(&socket);
