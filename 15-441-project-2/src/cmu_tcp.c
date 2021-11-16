@@ -11,7 +11,9 @@
  *
  * Return: The newly created socket will be stored in the dst parameter,
  *  and the value returned will provide error information. 
- *
+ * 
+ * TODO: constructor/teardown: simulate listen operation in this method. Please look at how listen is working in real tcp interface. 
+ * when listen, dst is empty
  */
 int cmu_socket(cmu_socket_t * dst, int flag, int port, char * serverIP){
   int sockfd, optval;

@@ -160,6 +160,12 @@ cmu_packet_t* create_packet(uint16_t src, uint16_t dst, uint32_t seq,
  * Param: ext_data - Header Extension Data
  * Param: data - Data attribute of packet
  * Param: len - Length of the data attribute
+ * map to the TCP package: https://book.systemsapproach.org/e2e/tcp.html#segment-format
+ * 
+ * 
+ * The reason why each side acknowledges a sequence number that is one larger than the one 
+ * sent is that the Acknowledgement field actually identifies the “next sequence number expected,” 
+ * thereby implicitly acknowledging all earlier sequence numbers
  *
  * Purpose: To construct the buffer representation of a packet with the given information.
  *

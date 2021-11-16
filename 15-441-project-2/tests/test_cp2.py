@@ -50,7 +50,7 @@ FIN_MASK = 0x2
 ACK_MASK = 0x4
 SYN_MASK = 0x8
 
-TIMEOUT = 3
+TIMEOUT = 300
 
 """
 You will need to add to these tests as you add functionality to your
@@ -97,28 +97,32 @@ def test_sequence_number():
         with Connection(host=TESTING_HOST_IP, user='vagrant',
                         connect_kwargs={'password':'vagrant'}) as conn:
             try:
-                conn.run(START_TESTING_SERVER_CMD)
-                conn.run('tmux has-session -t pytest_server')
+                #conn.run(START_TESTING_SERVER_CMD)
+                #conn.run('tmux has-session -t pytest_server')
                 syn_pkt = eth/ip/udp/CMUTCP(plen=25, seq_num=1000, flags=SYN_MASK)
+                #Send and receive packets at layer 2 and return only the first answer
+                syn_pkt.show()
                 syn_ack_pkt = srp1(syn_pkt, timeout=TIMEOUT, iface=IFNAME)
+                syn_ack_pkt.show()
                 
                 if (syn_ack_pkt is None or 
                     syn_ack_pkt[CMUTCP].flags != SYN_MASK|ACK_MASK or 
                     syn_ack_pkt[CMUTCP].ack_num != 1000+1):
                     print("Listener (server) did not properly respond to SYN packet.")
                     print("Test Failed")
-                    conn.run(STOP_TESTING_SERVER_CMD)
+                    #conn.run(STOP_TESTING_SERVER_CMD)
                     return
                 
                 print(syn_ack_pkt[CMUTCP].seq_num)
                 
                 ack_pkt = eth/ip/udp/CMUTCP(plen=25, seq_num=1001, ack_num=syn_ack_pkt[CMUTCP].seq_num + 1, flags=ACK_MASK)
+                #TODO: change server code and verify the effect. 
                 empty_pkt = srp1(ack_pkt, timeout=0.5, iface=IFNAME)
 
                 if empty_pkt is not None:
                     print("Listener (server) should not respond to ack pkt.")
                     print("Test Failed")
-                    conn.run(STOP_TESTING_SERVER_CMD)
+                    #conn.run(STOP_TESTING_SERVER_CMD)
                     return
 
                 data_pkt = eth/ip/udp/CMUTCP(plen=25 + len(payload), 
@@ -133,14 +137,15 @@ def test_sequence_number():
                     server_ack_pkt[CMUTCP].ack_num != 1001 + len(payload)):
                     print("Listener (server) did not properly respond to data packet.")
                     print("Test Failed")
-                    conn.run(STOP_TESTING_SERVER_CMD)
+                    #conn.run(STOP_TESTING_SERVER_CMD)
                     return
 
             finally:
-                try:
-                    conn.run(STOP_TESTING_SERVER_CMD)
-                except Exception as e:
-                    pass # Ignore error here that may occur if server is already shut down
+                pass
+            #    try:
+            #        #conn.run(STOP_TESTING_SERVER_CMD)
+            #    except Exception as e:
+            #        pass # Ignore error here that may occur if server is already shut down
             print("Test Passed")
 
 if __name__=='__main__':

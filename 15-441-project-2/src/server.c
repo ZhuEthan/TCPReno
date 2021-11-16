@@ -5,13 +5,28 @@
  *
  * Purpose: To provide some simple test cases and demonstrate how 
  *  the sockets will be used.
- *
+ * sock: 
+ * {socket = 3, thread_id = 140737351677696, my_port = 15441, their_port = 15441, conn = {sin_family = 2,
+    sin_port = 20796, sin_addr = {s_addr = 0}, sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0,
+  received_len = 0, recv_lock = {__data = {__lock = 1, __count = 0, __owner = 223750, __nusers = 1, __kind = 0,
+      __spins = 0, __elision = 0, __list = {__prev = 0x0, __next = 0x0}},
+    __size = "\001\000\000\000\000\000\000\000\006j\003\000\001", '\000' <repeats 26 times>, __align = 1},
+  wait_cond = {__data = {{__wseq = 0, __wseq32 = {__low = 0, __high = 0}}, {__g1_start = 0, __g1_start32 = {
+          __low = 0, __high = 0}}, __g_refs = {0, 0}, __g_size = {0, 0}, __g1_orig_size = 0, __wrefs = 0,
+      __g_signals = {0, 0}}, __size = '\000' <repeats 47 times>, __align = 0}, sending_buf = 0x0,
+  sending_len = 0, type = 1, send_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0,
+      __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0, __next = 0x0}},
+    __size = '\000' <repeats 39 times>, __align = 0}, dying = 0, death_lock = {__data = {__lock = 0,
+      __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0,
+        __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, window = {last_seq_received = 0,
+    last_ack_received = 0, ack_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0,
+        __spins = 0, __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>,
+      __align = 0}}}
  */
 void functionality(cmu_socket_t  * sock){
     char buf[9898];
     FILE *fp;
     int n;
-
     n = cmu_read(sock, buf, 200, NO_FLAG);
     printf("R: %s\n", buf);
     printf("N: %d\n", n);
@@ -23,6 +38,7 @@ void functionality(cmu_socket_t  * sock){
     n = cmu_read(sock, buf, 9898, NO_FLAG);
     printf("N: %d\n", n);
     fp = fopen("/vagrant/15-441-project-2/tests/file.c", "w+");
+    //each item 1 bytes, n items. 
     fwrite(buf, 1, n, fp);
 
 }
@@ -33,7 +49,7 @@ void functionality(cmu_socket_t  * sock){
  * Param: argv - values of command line arguments provided
  *
  * Purpose: To provide a sample listener for the TCP connection.
- *
+ * 
  */
 int main(int argc, char **argv) {
 	int portno;
