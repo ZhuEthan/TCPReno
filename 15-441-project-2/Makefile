@@ -35,4 +35,5 @@ clean:
 	-rm -f $(BUILD_DIR)/*.o peer client server
 	-rm tests/testing_server
 
-# gdb -tui ./server
+debug:
+	gdb -tui ./server

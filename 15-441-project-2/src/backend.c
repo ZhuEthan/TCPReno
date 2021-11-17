@@ -38,16 +38,27 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
   case ACK_FLAG_MASK:
     if (get_ack(pkt) > sock->window.last_ack_received)
       sock->window.last_ack_received = get_ack(pkt);
+    //ADDED by zhyisong
+    if (get_plen(pkt) > DEFAULT_HEADER_LEN) {
+      seq = get_seq(pkt);
+      data_len = get_plen(pkt) - DEFAULT_HEADER_LEN;
+      rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
+                            seq+data_len, DEFAULT_HEADER_LEN, data_len,
+                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+      sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+           (struct sockaddr *)&(sock->conn), conn_len);
+      free(rsp);  
+    }
     break;
-  default:
-    //zhyisong: Sending ack back to the sock
+  default://SYN MASK?
+    //zhyisongTODO: Sending ack back to the sock -- checkpoint 1 place
     seq = get_seq(pkt);
     /*rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
                             seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                             ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);*/
     rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
                             seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
-                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+                            ACK_FLAG_MASK|SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
     free(rsp);
@@ -78,7 +89,6 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
  *  These checks involve no-wait, wait, and timeout.
  *
  * Purpose: To check for data received by the socket.
- * TODO: insert the SYN handling process
  * LISTEN:
  * {socket = 3, thread_id = 140737351677696, my_port = 15441, their_port = 15441, conn = {
     sin_family = 2, sin_port = 20796, sin_addr = {s_addr = 0},

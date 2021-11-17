@@ -50,7 +50,7 @@ FIN_MASK = 0x2
 ACK_MASK = 0x4
 SYN_MASK = 0x8
 
-TIMEOUT = 300
+TIMEOUT = 3
 
 """
 You will need to add to these tests as you add functionality to your
@@ -101,9 +101,9 @@ def test_sequence_number():
                 #conn.run('tmux has-session -t pytest_server')
                 syn_pkt = eth/ip/udp/CMUTCP(plen=25, seq_num=1000, flags=SYN_MASK)
                 #Send and receive packets at layer 2 and return only the first answer
-                syn_pkt.show()
+                #syn_pkt.show()
                 syn_ack_pkt = srp1(syn_pkt, timeout=TIMEOUT, iface=IFNAME)
-                syn_ack_pkt.show()
+                #syn_ack_pkt.show()
                 
                 if (syn_ack_pkt is None or 
                     syn_ack_pkt[CMUTCP].flags != SYN_MASK|ACK_MASK or 
