@@ -139,6 +139,16 @@ def test_sequence_number():
                     print("Test Failed")
                     #conn.run(STOP_TESTING_SERVER_CMD)
                     return
+                
+                fin_pkt = eth/ip/udp/CMUTCP(plen=25, seq_num=1000, flags=FIN_MASK)
+                server_fin_ack_pkt = srp1(fin_pkt, timeout=TIMEOUT, ifaces=IFNAME) 
+
+                if (server_fin_ack_pkt is None or 
+                    server_fin_ack_pkt[CMUTCP].flag != ACK_MASK):
+                    print("Listener (server) did not properly respond to fin packet.")
+                    print("Test Failed")
+                    #conn.run(STOP_TESTING_SERVER_CMD)
+                    return
 
             finally:
                 pass
@@ -147,6 +157,7 @@ def test_sequence_number():
             #    except Exception as e:
             #        pass # Ignore error here that may occur if server is already shut down
             print("Test Passed")
+    
 
 if __name__=='__main__':
     test_sequence_number()
