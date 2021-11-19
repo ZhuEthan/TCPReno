@@ -50,6 +50,7 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
       free(rsp);  
     }
     break;
+  //TODO: verify fin handler is correct
   case FIN_FLAG_MASK:
     seq = get_seq(pkt);
     rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq, 
@@ -57,6 +58,7 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
                           ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
+    free(rsp);
     break;
   default://SYN MASK?
     //zhyisongTODO: Sending ack back to the sock -- checkpoint 1 place
