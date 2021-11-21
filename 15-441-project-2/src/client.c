@@ -68,7 +68,9 @@ int main(int argc, char **argv) {
     if(cmu_socket(&socket, TCP_INITIATOR, portno, serverip) < 0)
         exit(EXIT_FAILURE);
     
-    functionality(&socket);
+    //TODO: It will forever loop without funcionality
+    sleep(30000);
+    //functionality(&socket);
 
     if(cmu_close(&socket) < 0)
         exit(EXIT_FAILURE);

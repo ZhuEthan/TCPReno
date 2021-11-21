@@ -27,7 +27,21 @@ int check_ack(cmu_socket_t *sock, uint32_t seq) {
  *  the newly received packet.
  *
  * Comment: This will need to be updated for checkpoints 1,2,3
- *
+ * LISTEN {socket = 3, thread_id = 140737351677696, my_port = 15441, their_port = 15441, conn = {sin_family = 2, sin_port = 20796,
+    sin_addr = {s_addr = 33554442}, sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0, received_len = 0, recv_lock = {
+    __data = {__lock = 1, __count = 0, __owner = 297293, __nusers = 2, __kind = 0, __spins = 0, __elision = 0, __list = {
+        __prev = 0x0, __next = 0x0}}, __size = "\001\000\000\000\000\000\000\000M\211\004\000\002", '\000' <repeats 26 times>,
+    __align = 1}, wait_cond = {__data = {{__wseq = 2, __wseq32 = {__low = 2, __high = 0}}, {__g1_start = 0, __g1_start32 = {
+          __low = 0, __high = 0}}, __g_refs = {2, 0}, __g_size = {0, 0}, __g1_orig_size = 0, __wrefs = 8, __g_signals = {0, 0}},
+    __size = "\002", '\000' <repeats 15 times>, "\002", '\000' <repeats 19 times>, "\b\000\000\000\000\000\000\000\000\000\000",
+    __align = 2}, sending_buf = 0x0, sending_len = 0, type = 1, send_lock = {__data = {__lock = 0, __count = 0, __owner = 0,
+      __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0, __next = 0x0}},
+    __size = '\000' <repeats 39 times>, __align = 0}, dying = 0, death_lock = {__data = {__lock = 0, __count = 0, __owner = 0,
+      __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0, __next = 0x0}},
+    __size = '\000' <repeats 39 times>, __align = 0}, window = {last_seq_received = 0, last_ack_received = 0, ack_lock = {
+      __data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {
+          __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}}}
+     *pkt '\000'
  */
 void handle_message(cmu_socket_t *sock, char *pkt) {
   char *rsp;
@@ -121,6 +135,20 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
         __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0,
           __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}}}
     flags = NO_WAIT
+
+    INIT:
+    {socket = 3, thread_id = 140737351677696, my_port = 40739, their_port = 15441, conn = {sin_family = 2, sin_port = 20796,
+    sin_addr = {s_addr = 16777226}, sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0, received_len = 0, recv_lock = {
+    __data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0,
+        __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, wait_cond = {__data = {{__wseq = 0, __wseq32 = {
+          __low = 0, __high = 0}}, {__g1_start = 0, __g1_start32 = {__low = 0, __high = 0}}, __g_refs = {0, 0}, __g_size = {0, 0},
+      __g1_orig_size = 0, __wrefs = 0, __g_signals = {0, 0}}, __size = '\000' <repeats 47 times>, __align = 0}, sending_buf = 0x0,
+  sending_len = 0, type = 0, send_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0,
+      __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, dying = 0,
+  death_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {
+        __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, window = {last_seq_received = 0,
+    last_ack_received = 0, ack_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0,
+        __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}}}
  */
 void check_for_data(cmu_socket_t *sock, int flags) {
   char hdr[DEFAULT_HEADER_LEN];
@@ -129,44 +157,56 @@ void check_for_data(cmu_socket_t *sock, int flags) {
   ssize_t len = 0;
   uint32_t plen = 0, buf_size = 0, n = 0;
   fd_set ackFD;
+
   struct timeval time_out;
   time_out.tv_sec = 3;
   time_out.tv_usec = 0;
 
-  while (pthread_mutex_lock(&(sock->recv_lock)) != 0)
+    while (pthread_mutex_lock(&(sock->recv_lock)) != 0)
     ;
-  switch (flags) {
-  case NO_FLAG:
-    len = recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_PEEK,
-                   (struct sockaddr *)&(sock->conn), &conn_len);
-    break;
-  case TIMEOUT:
-    FD_ZERO(&ackFD);
-    FD_SET(sock->socket, &ackFD);
-    if (select(sock->socket + 1, &ackFD, NULL, NULL, &time_out) <= 0) {
+    switch (flags) {
+    case NO_FLAG:
+      len = recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_PEEK,
+                     (struct sockaddr *)&(sock->conn), &conn_len);
       break;
-    }
-  case NO_WAIT:
-    len =
-        recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_DONTWAIT | MSG_PEEK,
-                 (struct sockaddr *)&(sock->conn), &conn_len);
-    break;
-  default:
-    perror("ERROR unknown flag");
-  }
-  if (len >= DEFAULT_HEADER_LEN) {
-    printf("len >= HEADER_LEN\n");
-    plen = get_plen(hdr);
-    pkt = malloc(plen);
-    while (buf_size < plen) {
-      n = recvfrom(sock->socket, pkt + buf_size, plen - buf_size, NO_FLAG,
+    case TIMEOUT:
+      FD_ZERO(&ackFD);
+      FD_SET(sock->socket, &ackFD);
+      int nread = 0;
+      if ((nread=select(sock->socket + 1, &ackFD, NULL, NULL, &time_out)) <= 0) {
+        break;
+      }
+    case NO_WAIT:
+      len =
+          recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_DONTWAIT | MSG_PEEK,
                    (struct sockaddr *)&(sock->conn), &conn_len);
-      buf_size = buf_size + n;
+      break;
+    default:
+      perror("ERROR unknown flag");
     }
-    handle_message(sock, pkt);
-    free(pkt);
-  }
-  pthread_mutex_unlock(&(sock->recv_lock));
+  
+    if (len >= DEFAULT_HEADER_LEN) {
+      printf("len >= HEADER_LEN\n");
+      plen = get_plen(hdr);
+      pkt = malloc(plen);
+      while (buf_size < plen) {
+        n = recvfrom(sock->socket, pkt + buf_size, plen - buf_size, NO_FLAG,
+                     (struct sockaddr *)&(sock->conn), &conn_len);
+        buf_size = buf_size + n;
+      }
+      handle_message(sock, pkt);
+      free(pkt);
+    }
+    pthread_mutex_unlock(&(sock->recv_lock));
+}
+
+void init_tcp_handshake(cmu_socket_t *sock) {
+  socklen_t conn_len = sizeof(sock->conn);
+  char* pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 1000, 
+                          0, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
+                          SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+  sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+  free(pkt);
 }
 
 /*
@@ -188,7 +228,6 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
   uint32_t seq;
 
   sockfd = sock->socket;
-  //in Listen mode starting phase, buf_len is 0. 
   if (buf_len > 0) {
     while (buf_len != 0) {
       seq = sock->window.last_ack_received;
@@ -249,6 +288,21 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
     ack_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0,
         __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0,
           __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}}}
+ *  INIT
+ * {socket = 3, thread_id = 140737351677696, my_port = 40739, their_port = 15441, conn = {sin_family = 2, sin_port = 20796,
+    sin_addr = {s_addr = 16777226}, sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0, received_len = 0, recv_lock = {
+    __data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0,
+        __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, wait_cond = {__data = {{__wseq = 0, __wseq32 = {
+          __low = 0, __high = 0}}, {__g1_start = 0, __g1_start32 = {__low = 0, __high = 0}}, __g_refs = {0, 0}, __g_size = {0, 0},
+      __g1_orig_size = 0, __wrefs = 0, __g_signals = {0, 0}}, __size = '\000' <repeats 47 times>, __align = 0}, sending_buf = 0x0,
+  sending_len = 0, type = 0, send_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0,
+      __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, dying = 0,
+  death_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {
+        __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, window = {last_seq_received = 0,
+    last_ack_received = 0, ack_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0,
+        __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}}}
+ * 
+ * Type could be used to distinguish
  * 
  */
 void *begin_backend(void *in) {
@@ -258,7 +312,12 @@ void *begin_backend(void *in) {
 
   printf("begin_backend\n");
 
-//NOTICE this forever loop. 
+  if (dst->type == TCP_INITIATOR) {
+      init_tcp_handshake(dst);
+      check_for_data(dst, TIMEOUT);
+  }
+
+  //NOTICE this forever loop. 
   while (TRUE) {
     while (pthread_mutex_lock(&(dst->death_lock)) != 0)
       ;
@@ -283,7 +342,7 @@ void *begin_backend(void *in) {
       free(data);
     } else
       pthread_mutex_unlock(&(dst->send_lock));
-
+    
     check_for_data(dst, NO_WAIT);
 
     while (pthread_mutex_lock(&(dst->recv_lock)) != 0)
