@@ -178,7 +178,7 @@ void check_for_data(cmu_socket_t *sock, int flags) {
     if ((nread=select(sock->socket + 1, &ackFD, NULL, NULL, &time_out)) <= 0) {
       break;
     }
-    //The
+  //The
   case NO_WAIT:
     len =
         recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_DONTWAIT | MSG_PEEK,
