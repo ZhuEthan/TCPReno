@@ -69,8 +69,8 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     
     //TODO: It will forever loop without funcionality
-    sleep(30000);
-    //functionality(&socket);
+    //sleep(30000);
+    functionality(&socket);
 
     if(cmu_close(&socket) < 0)
         exit(EXIT_FAILURE);

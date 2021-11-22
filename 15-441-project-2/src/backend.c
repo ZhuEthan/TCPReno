@@ -52,22 +52,28 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
   case ACK_FLAG_MASK:
     if (get_ack(pkt) > sock->window.last_ack_received)
       sock->window.last_ack_received = get_ack(pkt);
-    //ADDED by zhyisong
-    if (get_plen(pkt) > DEFAULT_HEADER_LEN) {
-      seq = get_seq(pkt);
-      data_len = get_plen(pkt) - DEFAULT_HEADER_LEN;
-      rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
-                            seq+data_len, DEFAULT_HEADER_LEN, data_len,
-                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
-      sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
-           (struct sockaddr *)&(sock->conn), conn_len);
-      free(rsp);  
-    }
     break;
-  //TODO: verify fin handler is correct
   case FIN_FLAG_MASK:
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0, 
+                          0, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
+                          ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+           (struct sockaddr *)&(sock->conn), conn_len);
+    free(rsp);
+    break;
+    //TODO: The server return ACK and client's response will forever loop. 
+  case SYN_FLAG_MASK:
     seq = get_seq(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq, 
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500, 
+                          seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
+                          ACK_FLAG_MASK|SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+           (struct sockaddr *)&(sock->conn), conn_len);
+    free(rsp);
+    break;
+  case SYN_FLAG_MASK|ACK_FLAG_MASK:
+    seq = get_seq(pkt);
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0, 
                           seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
                           ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
@@ -75,14 +81,10 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
     free(rsp);
     break;
   default://SYN MASK?
-    //zhyisongTODO: Sending ack back to the sock -- checkpoint 1 place
     seq = get_seq(pkt);
-    /*rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
-                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
-                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);*/
     rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
                             seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
-                            ACK_FLAG_MASK|SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
     free(rsp);
@@ -162,42 +164,42 @@ void check_for_data(cmu_socket_t *sock, int flags) {
   time_out.tv_sec = 3;
   time_out.tv_usec = 0;
 
-    while (pthread_mutex_lock(&(sock->recv_lock)) != 0)
-    ;
-    switch (flags) {
-    case NO_FLAG:
-      len = recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_PEEK,
-                     (struct sockaddr *)&(sock->conn), &conn_len);
-      break;
-    case TIMEOUT:
-      FD_ZERO(&ackFD);
-      FD_SET(sock->socket, &ackFD);
-      int nread = 0;
-      if ((nread=select(sock->socket + 1, &ackFD, NULL, NULL, &time_out)) <= 0) {
-        break;
-      }
-    case NO_WAIT:
-      len =
-          recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_DONTWAIT | MSG_PEEK,
+  while (pthread_mutex_lock(&(sock->recv_lock)) != 0)
+  ;
+  switch (flags) {
+  case NO_FLAG:
+    len = recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_PEEK,
                    (struct sockaddr *)&(sock->conn), &conn_len);
+    break;
+  case TIMEOUT:
+    FD_ZERO(&ackFD);
+    FD_SET(sock->socket, &ackFD);
+    int nread = 0;
+    if ((nread=select(sock->socket + 1, &ackFD, NULL, NULL, &time_out)) <= 0) {
       break;
-    default:
-      perror("ERROR unknown flag");
     }
+    //The
+  case NO_WAIT:
+    len =
+        recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_DONTWAIT | MSG_PEEK,
+                 (struct sockaddr *)&(sock->conn), &conn_len);
+    break;
+  default:
+    perror("ERROR unknown flag");
+  }
   
-    if (len >= DEFAULT_HEADER_LEN) {
-      printf("len >= HEADER_LEN\n");
-      plen = get_plen(hdr);
-      pkt = malloc(plen);
-      while (buf_size < plen) {
-        n = recvfrom(sock->socket, pkt + buf_size, plen - buf_size, NO_FLAG,
-                     (struct sockaddr *)&(sock->conn), &conn_len);
-        buf_size = buf_size + n;
-      }
-      handle_message(sock, pkt);
-      free(pkt);
+  if (len >= DEFAULT_HEADER_LEN) {
+    plen = get_plen(hdr);
+    pkt = malloc(plen);
+    while (buf_size < plen) {
+      n = recvfrom(sock->socket, pkt + buf_size, plen - buf_size, NO_FLAG,
+                   (struct sockaddr *)&(sock->conn), &conn_len);
+      buf_size = buf_size + n;
     }
-    pthread_mutex_unlock(&(sock->recv_lock));
+    handle_message(sock, pkt);
+    free(pkt);
+  }
+  pthread_mutex_unlock(&(sock->recv_lock));
 }
 
 void init_tcp_handshake(cmu_socket_t *sock) {
@@ -206,6 +208,16 @@ void init_tcp_handshake(cmu_socket_t *sock) {
                           0, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
                           SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
   sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+  free(pkt);
+}
+
+void init_teardown_tcp(cmu_socket_t *sock) {
+  socklen_t conn_len = sizeof(sock->conn);
+  char* pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0, 
+                          0, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
+                          FIN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+  sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+  printf("tear down happened");
   free(pkt);
 }
 
@@ -358,6 +370,9 @@ void *begin_backend(void *in) {
       pthread_cond_signal(&(dst->wait_cond));
     }
   }
+
+  init_teardown_tcp(dst);
+  check_for_data(dst, TIMEOUT);
 
   pthread_exit(NULL);
   return NULL;
