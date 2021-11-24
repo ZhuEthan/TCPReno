@@ -46,7 +46,7 @@ int check_ack(cmu_socket_t *sock, uint32_t seq) {
 void handle_message(cmu_socket_t *sock, char *pkt) {
   char *rsp;
   uint8_t flags = get_flags(pkt);
-  uint32_t data_len, seq;
+  uint32_t data_len, seq, ack;
   socklen_t conn_len = sizeof(sock->conn);
   switch (flags) {
   case ACK_FLAG_MASK:
@@ -54,8 +54,10 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
       sock->window.last_ack_received = get_ack(pkt);
     break;
   case FIN_FLAG_MASK:
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0, 
-                          0, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
+    seq = get_seq(pkt);
+    ack = get_ack(ack);
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack, 
+                          seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
                           ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
@@ -64,7 +66,8 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
     //TODO: The server return ACK and client's response will forever loop. 
   case SYN_FLAG_MASK:
     seq = get_seq(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500, 
+    ack = get_ack(pkt);
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack, 
                           seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
                           ACK_FLAG_MASK|SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
@@ -73,7 +76,8 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
     break;
   case SYN_FLAG_MASK|ACK_FLAG_MASK:
     seq = get_seq(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0, 
+    ack = get_ack(pkt);
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack, 
                           seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
                           ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
