@@ -27,21 +27,34 @@ int check_ack(cmu_socket_t *sock, uint32_t seq) {
  *  the newly received packet.
  *
  * Comment: This will need to be updated for checkpoints 1,2,3
- * LISTEN {socket = 3, thread_id = 140737351677696, my_port = 15441, their_port = 15441, conn = {sin_family = 2, sin_port = 20796,
-    sin_addr = {s_addr = 33554442}, sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0, received_len = 0, recv_lock = {
-    __data = {__lock = 1, __count = 0, __owner = 297293, __nusers = 2, __kind = 0, __spins = 0, __elision = 0, __list = {
-        __prev = 0x0, __next = 0x0}}, __size = "\001\000\000\000\000\000\000\000M\211\004\000\002", '\000' <repeats 26 times>,
-    __align = 1}, wait_cond = {__data = {{__wseq = 2, __wseq32 = {__low = 2, __high = 0}}, {__g1_start = 0, __g1_start32 = {
-          __low = 0, __high = 0}}, __g_refs = {2, 0}, __g_size = {0, 0}, __g1_orig_size = 0, __wrefs = 8, __g_signals = {0, 0}},
-    __size = "\002", '\000' <repeats 15 times>, "\002", '\000' <repeats 19 times>, "\b\000\000\000\000\000\000\000\000\000\000",
-    __align = 2}, sending_buf = 0x0, sending_len = 0, type = 1, send_lock = {__data = {__lock = 0, __count = 0, __owner = 0,
-      __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0, __next = 0x0}},
-    __size = '\000' <repeats 39 times>, __align = 0}, dying = 0, death_lock = {__data = {__lock = 0, __count = 0, __owner = 0,
-      __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0, __next = 0x0}},
-    __size = '\000' <repeats 39 times>, __align = 0}, window = {last_seq_received = 0, last_ack_received = 0, ack_lock = {
-      __data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {
-          __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}}}
-     *pkt '\000'
+ * LISTEN {socket = 3, thread_id = 140737351677696, my_port = 15441, their_port
+ = 15441, conn = {sin_family = 2, sin_port = 20796, sin_addr = {s_addr =
+ 33554442}, sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0,
+ received_len = 0, recv_lock = {
+    __data = {__lock = 1, __count = 0, __owner = 297293, __nusers = 2, __kind =
+ 0, __spins = 0, __elision = 0, __list = {
+        __prev = 0x0, __next = 0x0}}, __size =
+ "\001\000\000\000\000\000\000\000M\211\004\000\002", '\000' <repeats 26 times>,
+    __align = 1}, wait_cond = {__data = {{__wseq = 2, __wseq32 = {__low = 2,
+ __high = 0}}, {__g1_start = 0, __g1_start32 = {
+          __low = 0, __high = 0}}, __g_refs = {2, 0}, __g_size = {0, 0},
+ __g1_orig_size = 0, __wrefs = 8, __g_signals = {0, 0}},
+    __size = "\002", '\000' <repeats 15 times>, "\002", '\000' <repeats 19
+ times>, "\b\000\000\000\000\000\000\000\000\000\000",
+    __align = 2}, sending_buf = 0x0, sending_len = 0, type = 1, send_lock =
+ {__data = {__lock = 0, __count = 0, __owner = 0,
+      __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev =
+ 0x0, __next = 0x0}},
+    __size = '\000' <repeats 39 times>, __align = 0}, dying = 0, death_lock =
+ {__data = {__lock = 0, __count = 0, __owner = 0,
+      __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev =
+ 0x0, __next = 0x0}},
+    __size = '\000' <repeats 39 times>, __align = 0}, window =
+ {last_seq_received = 0, last_ack_received = 0, ack_lock = {
+      __data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0,
+ __spins = 0, __elision = 0, __list = {
+          __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>,
+ __align = 0}}} *pkt '\000'
  */
 void handle_message(cmu_socket_t *sock, char *pkt) {
   char *rsp;
@@ -56,35 +69,35 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
   case FIN_FLAG_MASK:
     seq = get_seq(pkt);
     ack = get_ack(ack);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack, 
-                          seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
-                          ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack,
+                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
     free(rsp);
     break;
-    //TODO: The server return ACK and client's response will forever loop. 
+    // TODO: The server return ACK and client's response will forever loop.
   case SYN_FLAG_MASK:
     seq = get_seq(pkt);
     ack = get_ack(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack, 
-                          seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
-                          ACK_FLAG_MASK|SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack,
+                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                            ACK_FLAG_MASK | SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
     free(rsp);
     break;
-  case SYN_FLAG_MASK|ACK_FLAG_MASK:
+  case SYN_FLAG_MASK | ACK_FLAG_MASK:
     seq = get_seq(pkt);
     ack = get_ack(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack, 
-                          seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
-                          ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack,
+                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
     free(rsp);
     break;
-  default://SYN MASK?
+  default: // SYN MASK?
     seq = get_seq(pkt);
     rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
                             seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
@@ -120,41 +133,61 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
  *
  * Purpose: To check for data received by the socket.
  * LISTEN:
- * {socket = 3, thread_id = 140737351677696, my_port = 15441, their_port = 15441, conn = {
-    sin_family = 2, sin_port = 20796, sin_addr = {s_addr = 0},
-    sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0, received_len = 0,
-  recv_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 1, __kind = 0,
+ * {socket = 3, thread_id = 140737351677696, my_port = 15441, their_port =
+15441, conn = { sin_family = 2, sin_port = 20796, sin_addr = {s_addr = 0},
+    sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0, received_len
+= 0, recv_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 1,
+__kind = 0,
       __spins = 0, __elision = 0, __list = {__prev = 0x0, __next = 0x0}},
-    __size = '\000' <repeats 12 times>, "\001", '\000' <repeats 26 times>, __align = 0},
-  wait_cond = {__data = {{__wseq = 2, __wseq32 = {__low = 2, __high = 0}}, {__g1_start = 0,
-        __g1_start32 = {__low = 0, __high = 0}}, __g_refs = {2, 0}, __g_size = {0, 0},
+    __size = '\000' <repeats 12 times>, "\001", '\000' <repeats 26 times>,
+__align = 0}, wait_cond = {__data = {{__wseq = 2, __wseq32 = {__low = 2, __high
+= 0}}, {__g1_start = 0,
+        __g1_start32 = {__low = 0, __high = 0}}, __g_refs = {2, 0}, __g_size =
+{0, 0},
       __g1_orig_size = 0, __wrefs = 8, __g_signals = {0, 0}},
-    __size = "\002", '\000' <repeats 15 times>, "\002", '\000' <repeats 19 times>, "\b\000\000\0
-00\000\000\000\000\000\000\000", __align = 2}, sending_buf = 0x0, sending_len = 0, type = 1,
-  send_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0,
+    __size = "\002", '\000' <repeats 15 times>, "\002", '\000' <repeats 19
+times>, "\b\000\000\0 00\000\000\000\000\000\000\000", __align = 2}, sending_buf
+= 0x0, sending_len = 0, type = 1, send_lock = {__data = {__lock = 0, __count =
+0, __owner = 0, __nusers = 0, __kind = 0,
       __spins = 0, __elision = 0, __list = {__prev = 0x0, __next = 0x0}},
-    __size = '\000' <repeats 39 times>, __align = 0}, dying = 0, death_lock = {__data = {
-      __lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0,
+    __size = '\000' <repeats 39 times>, __align = 0}, dying = 0, death_lock =
+{__data = {
+      __lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins =
+0,
       __elision = 0, __list = {__prev = 0x0, __next = 0x0}},
-    __size = '\000' <repeats 39 times>, __align = 0}, window = {last_seq_received = 0,
-    last_ack_received = 0, ack_lock = {__data = {__lock = 0, __count = 0, __owner = 0,
-        __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0,
+    __size = '\000' <repeats 39 times>, __align = 0}, window =
+{last_seq_received = 0, last_ack_received = 0, ack_lock = {__data = {__lock = 0,
+__count = 0, __owner = 0,
+        __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev =
+0x0,
           __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}}}
     flags = NO_WAIT
 
     INIT:
-    {socket = 3, thread_id = 140737351677696, my_port = 40739, their_port = 15441, conn = {sin_family = 2, sin_port = 20796,
-    sin_addr = {s_addr = 16777226}, sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0, received_len = 0, recv_lock = {
-    __data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0,
-        __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, wait_cond = {__data = {{__wseq = 0, __wseq32 = {
-          __low = 0, __high = 0}}, {__g1_start = 0, __g1_start32 = {__low = 0, __high = 0}}, __g_refs = {0, 0}, __g_size = {0, 0},
-      __g1_orig_size = 0, __wrefs = 0, __g_signals = {0, 0}}, __size = '\000' <repeats 47 times>, __align = 0}, sending_buf = 0x0,
-  sending_len = 0, type = 0, send_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0,
-      __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, dying = 0,
-  death_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {
-        __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, window = {last_seq_received = 0,
-    last_ack_received = 0, ack_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0,
-        __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}}}
+    {socket = 3, thread_id = 140737351677696, my_port = 40739, their_port =
+15441, conn = {sin_family = 2, sin_port = 20796, sin_addr = {s_addr = 16777226},
+sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0, received_len =
+0, recv_lock = {
+    __data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0,
+__spins = 0, __elision = 0, __list = {__prev = 0x0,
+        __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0},
+wait_cond = {__data = {{__wseq = 0, __wseq32 = {
+          __low = 0, __high = 0}}, {__g1_start = 0, __g1_start32 = {__low = 0,
+__high = 0}}, __g_refs = {0, 0}, __g_size = {0, 0},
+      __g1_orig_size = 0, __wrefs = 0, __g_signals = {0, 0}}, __size = '\000'
+<repeats 47 times>, __align = 0}, sending_buf = 0x0, sending_len = 0, type = 0,
+send_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0,
+__kind = 0, __spins = 0,
+      __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000'
+<repeats 39 times>, __align = 0}, dying = 0, death_lock = {__data = {__lock = 0,
+__count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0,
+__list = {
+        __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>,
+__align = 0}, window = {last_seq_received = 0, last_ack_received = 0, ack_lock =
+{__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0,
+__spins = 0,
+        __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000'
+<repeats 39 times>, __align = 0}}}
  */
 void check_for_data(cmu_socket_t *sock, int flags) {
   char hdr[DEFAULT_HEADER_LEN];
@@ -169,7 +202,7 @@ void check_for_data(cmu_socket_t *sock, int flags) {
   time_out.tv_usec = 0;
 
   while (pthread_mutex_lock(&(sock->recv_lock)) != 0)
-  ;
+    ;
   switch (flags) {
   case NO_FLAG:
     len = recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_PEEK,
@@ -179,10 +212,11 @@ void check_for_data(cmu_socket_t *sock, int flags) {
     FD_ZERO(&ackFD);
     FD_SET(sock->socket, &ackFD);
     int nread = 0;
-    if ((nread=select(sock->socket + 1, &ackFD, NULL, NULL, &time_out)) <= 0) {
+    if ((nread = select(sock->socket + 1, &ackFD, NULL, NULL, &time_out)) <=
+        0) {
       break;
     }
-  //The
+  // The
   case NO_WAIT:
     len =
         recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_DONTWAIT | MSG_PEEK,
@@ -191,7 +225,7 @@ void check_for_data(cmu_socket_t *sock, int flags) {
   default:
     perror("ERROR unknown flag");
   }
-  
+
   if (len >= DEFAULT_HEADER_LEN) {
     plen = get_plen(hdr);
     pkt = malloc(plen);
@@ -208,19 +242,21 @@ void check_for_data(cmu_socket_t *sock, int flags) {
 
 void init_tcp_handshake(cmu_socket_t *sock) {
   socklen_t conn_len = sizeof(sock->conn);
-  char* pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 1000, 
-                          0, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
-                          SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
-  sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+  char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 1000,
+                                0, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                                SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+  sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0,
+         (struct sockaddr *)&(sock->conn), conn_len);
   free(pkt);
 }
 
 void init_teardown_tcp(cmu_socket_t *sock) {
   socklen_t conn_len = sizeof(sock->conn);
-  char* pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0, 
-                          0, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
-                          FIN_FLAG_MASK, 1, 0, NULL, NULL, 0);
-  sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+  char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0, 0,
+                                DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                                FIN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+  sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0,
+         (struct sockaddr *)&(sock->conn), conn_len);
   printf("tear down happened");
   free(pkt);
 }
@@ -234,7 +270,7 @@ void init_teardown_tcp(cmu_socket_t *sock) {
  *  packet at a time.
  *
  * Comment: This will need to be updated for checkpoints 1,2,3
- * 
+ *
  */
 void single_send(cmu_socket_t *sock, char *data, int buf_len) {
   char *msg;
@@ -249,7 +285,8 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
       seq = sock->window.last_ack_received;
       if (buf_len <= MAX_DLEN) {
         plen = DEFAULT_HEADER_LEN + buf_len;
-        //map to the TCP package: https://book.systemsapproach.org/e2e/tcp.html#segment-format
+        // map to the TCP package:
+        // https://book.systemsapproach.org/e2e/tcp.html#segment-format
         msg = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
                                 seq, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
                                 NULL, data_offset, buf_len);
@@ -278,48 +315,65 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
  *
  * Purpose: To poll in the background for sending and receiving data to
  *  the other side.
- * 
- * Listen: 
+ *
+ * Listen:
  * {socket = 3, thread_id = 140737351677696, my_port = 15441,
   their_port = 15441, conn = {sin_family = 2, sin_port = 20796, sin_addr = {
-      s_addr = 0}, sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0,
-  received_len = 0, recv_lock = {__data = {__lock = 0, __count = 0, __owner = 0,
+      s_addr = 0}, sin_zero = "\000\000\000\000\000\000\000"}, received_buf =
+0x0, received_len = 0, recv_lock = {__data = {__lock = 0, __count = 0, __owner =
+0,
       __nusers = 1, __kind = 0, __spins = 0, __elision = 0, __list = {
         __prev = 0x0, __next = 0x0}},
     __size = '\000' <repeats 12 times>, "\001", '\000' <repeats 26 times>,
     __align = 0}, wait_cond = {__data = {{__wseq = 2, __wseq32 = {__low = 2,
-          __high = 0}}, {__g1_start = 0, __g1_start32 = {__low = 0, __high = 0}},
+          __high = 0}}, {__g1_start = 0, __g1_start32 = {__low = 0, __high =
+0}},
       __g_refs = {2, 0}, __g_size = {0, 0}, __g1_orig_size = 0, __wrefs = 8,
       __g_signals = {0, 0}},
-    __size = "\002", '\000' <repeats 15 times>, "\002", '\000' <repeats 19 times>, "
-\b\000\000\000\000\000\000\000\000\000\000", __align = 2}, sending_buf = 0x0,
-  sending_len = 0, type = 1, send_lock = {__data = {__lock = 0, __count = 0,
-      __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {
+    __size = "\002", '\000' <repeats 15 times>, "\002", '\000' <repeats 19
+times>, " \b\000\000\000\000\000\000\000\000\000\000", __align = 2}, sending_buf
+= 0x0, sending_len = 0, type = 1, send_lock = {__data = {__lock = 0, __count =
+0,
+      __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list
+= {
         __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>,
     __align = 0}, dying = 0, death_lock = {__data = {__lock = 1, __count = 0,
       __owner = 216574, __nusers = 1, __kind = 0, __spins = 0, __elision = 0,
       __list = {__prev = 0x0, __next = 0x0}},
-    __size = "\001\000\000\000\000\000\000\000\376M\003\000\001", '\000' <repeats 26
- times>, __align = 1}, window = {last_seq_received = 0, last_ack_received = 0,
-    ack_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0,
+    __size = "\001\000\000\000\000\000\000\000\376M\003\000\001", '\000'
+<repeats 26 times>, __align = 1}, window = {last_seq_received = 0,
+last_ack_received = 0, ack_lock = {__data = {__lock = 0, __count = 0, __owner =
+0, __nusers = 0,
         __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0,
           __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}}}
  *  INIT
- * {socket = 3, thread_id = 140737351677696, my_port = 40739, their_port = 15441, conn = {sin_family = 2, sin_port = 20796,
-    sin_addr = {s_addr = 16777226}, sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0, received_len = 0, recv_lock = {
-    __data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0,
-        __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, wait_cond = {__data = {{__wseq = 0, __wseq32 = {
-          __low = 0, __high = 0}}, {__g1_start = 0, __g1_start32 = {__low = 0, __high = 0}}, __g_refs = {0, 0}, __g_size = {0, 0},
-      __g1_orig_size = 0, __wrefs = 0, __g_signals = {0, 0}}, __size = '\000' <repeats 47 times>, __align = 0}, sending_buf = 0x0,
-  sending_len = 0, type = 0, send_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0,
-      __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, dying = 0,
-  death_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0, __list = {
-        __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}, window = {last_seq_received = 0,
-    last_ack_received = 0, ack_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0,
-        __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0}}}
- * 
+ * {socket = 3, thread_id = 140737351677696, my_port = 40739, their_port =
+15441, conn = {sin_family = 2, sin_port = 20796, sin_addr = {s_addr = 16777226},
+sin_zero = "\000\000\000\000\000\000\000"}, received_buf = 0x0, received_len =
+0, recv_lock = {
+    __data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0,
+__spins = 0, __elision = 0, __list = {__prev = 0x0,
+        __next = 0x0}}, __size = '\000' <repeats 39 times>, __align = 0},
+wait_cond = {__data = {{__wseq = 0, __wseq32 = {
+          __low = 0, __high = 0}}, {__g1_start = 0, __g1_start32 = {__low = 0,
+__high = 0}}, __g_refs = {0, 0}, __g_size = {0, 0},
+      __g1_orig_size = 0, __wrefs = 0, __g_signals = {0, 0}}, __size = '\000'
+<repeats 47 times>, __align = 0}, sending_buf = 0x0, sending_len = 0, type = 0,
+send_lock = {__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0,
+__kind = 0, __spins = 0,
+      __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000'
+<repeats 39 times>, __align = 0}, dying = 0, death_lock = {__data = {__lock = 0,
+__count = 0, __owner = 0, __nusers = 0, __kind = 0, __spins = 0, __elision = 0,
+__list = {
+        __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>,
+__align = 0}, window = {last_seq_received = 0, last_ack_received = 0, ack_lock =
+{__data = {__lock = 0, __count = 0, __owner = 0, __nusers = 0, __kind = 0,
+__spins = 0,
+        __elision = 0, __list = {__prev = 0x0, __next = 0x0}}, __size = '\000'
+<repeats 39 times>, __align = 0}}}
+ *
  * Type could be used to distinguish
- * 
+ *
  */
 void *begin_backend(void *in) {
   cmu_socket_t *dst = (cmu_socket_t *)in;
@@ -329,11 +383,11 @@ void *begin_backend(void *in) {
   printf("begin_backend\n");
 
   if (dst->type == TCP_INITIATOR) {
-      init_tcp_handshake(dst);
-      check_for_data(dst, TIMEOUT);
+    init_tcp_handshake(dst);
+    check_for_data(dst, TIMEOUT);
   }
 
-  //NOTICE this forever loop. 
+  // NOTICE this forever loop.
   while (TRUE) {
     while (pthread_mutex_lock(&(dst->death_lock)) != 0)
       ;
@@ -358,7 +412,7 @@ void *begin_backend(void *in) {
       free(data);
     } else
       pthread_mutex_unlock(&(dst->send_lock));
-    
+
     check_for_data(dst, NO_WAIT);
 
     while (pthread_mutex_lock(&(dst->recv_lock)) != 0)
