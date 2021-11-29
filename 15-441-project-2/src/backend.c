@@ -55,6 +55,7 @@ int check_ack(cmu_socket_t *sock, uint32_t seq) {
  __spins = 0, __elision = 0, __list = {
           __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>,
  __align = 0}}} *pkt '\000'
+ pkt is the received packet
  */
 void handle_message(cmu_socket_t *sock, char *pkt) {
   char *rsp;
@@ -67,57 +68,38 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
       sock->window.last_ack_received = get_ack(pkt);
     break;
   case FIN_FLAG_MASK:
-<<<<<<< HEAD
     seq = get_seq(pkt);
-    ack = get_ack(ack);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack,
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq/*ignore*/,
                             seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                             ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
-=======
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0, 
-                          0, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
-                          ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
->>>>>>> parent of 8c001bb... fix ack
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
     free(rsp);
     break;
-    // TODO: The server return ACK and client's response will forever loop.
   case SYN_FLAG_MASK:
     seq = get_seq(pkt);
-<<<<<<< HEAD
-    ack = get_ack(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack,
-                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*random*/,
+                            seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                             ACK_FLAG_MASK | SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
-=======
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500, 
-                          seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
-                          ACK_FLAG_MASK|SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
->>>>>>> parent of 8c001bb... fix ack
+
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
     free(rsp);
     break;
   case SYN_FLAG_MASK | ACK_FLAG_MASK:
     seq = get_seq(pkt);
-<<<<<<< HEAD
-    ack = get_ack(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), ack,
-                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
-                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
-=======
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0, 
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq/*ignore*/, 
                           seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
                           ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
->>>>>>> parent of 8c001bb... fix ack
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
+    if (get_ack(pkt) > sock->window.last_ack_received)
+      sock->window.last_ack_received = get_ack(pkt);
     free(rsp);
     break;
-  default: // SYN MASK?
+  default: // established state == NO_FLAG
     seq = get_seq(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq/*ignore*/,
                             seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                             ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
@@ -260,8 +242,8 @@ void check_for_data(cmu_socket_t *sock, int flags) {
 
 void init_tcp_handshake(cmu_socket_t *sock) {
   socklen_t conn_len = sizeof(sock->conn);
-  char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 1000,
-                                0, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+  char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 1000/*random*/,
+                                0/*ignore*/, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                                 SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
   sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0,
          (struct sockaddr *)&(sock->conn), conn_len);
@@ -270,12 +252,13 @@ void init_tcp_handshake(cmu_socket_t *sock) {
 
 void init_teardown_tcp(cmu_socket_t *sock) {
   socklen_t conn_len = sizeof(sock->conn);
-  char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0, 0,
+  uint32_t seq = sock->window.last_ack_received;
+  char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq, seq/*ignore*/,
                                 DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                                 FIN_FLAG_MASK, 1, 0, NULL, NULL, 0);
   sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0,
          (struct sockaddr *)&(sock->conn), conn_len);
-  printf("tear down happened");
+  printf("tear down happened\n");
   free(pkt);
 }
 
@@ -306,13 +289,13 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
         // map to the TCP package:
         // https://book.systemsapproach.org/e2e/tcp.html#segment-format
         msg = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
-                                seq, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
+                                seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
                                 NULL, data_offset, buf_len);
         buf_len = 0;
       } else {
         plen = DEFAULT_HEADER_LEN + MAX_DLEN;
         msg = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
-                                seq, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
+                                seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
                                 NULL, data_offset, MAX_DLEN);
         buf_len -= MAX_DLEN;
       }

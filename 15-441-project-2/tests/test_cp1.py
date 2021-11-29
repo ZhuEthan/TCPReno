@@ -10,7 +10,7 @@ import time
 import socket
 
 CODE_DIR = '/vagrant/15-441-project-2'
-PCAP = '/vagrant/15-441-project-2/tests/test.pcap'
+PCAP = '/vagrant/15-441-project-2/capture.pcap'
 IFNAME = 'enp0s8'
 
 # which host are we running this pytest script on, server or client?
@@ -126,7 +126,9 @@ def test_pcap_acks():
             elif (pkt[CMUTCP].flags == ACK_MASK):
                 ack_nums.append(pkt[CMUTCP].ack_num-1)
     # probably not the best way to do this test!
-    if set(seq_nums) == set(ack_nums):
+    print("seq_nums", seq_nums)
+    print("ack_nums", ack_nums)
+    if set(seq_nums) == set(ack_nums[1:-1]):
         print("Test Passed")
     else:
         print("Test Failed")

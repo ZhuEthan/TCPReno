@@ -12,18 +12,27 @@ void functionality(cmu_socket_t  * sock){
     int read;
     FILE *fp;
 
-    cmu_write(sock, "hi there", 9);
-    cmu_write(sock, "hi there2", 10);
-    cmu_write(sock, "hi there3", 10);
-    cmu_write(sock, "hi there4", 10);
-    cmu_write(sock, "hi there5", 10);
-    cmu_write(sock, "hi there6", 10);
-    cmu_read(sock, buf, 200, NO_FLAG);
+    int n;
 
-    cmu_write(sock, "hi there", 9);
-    cmu_read(sock, buf, 200, NO_FLAG);
-    printf("R: %s\n", buf);
+    cmu_write(sock, "hi there from client", 21);
+    cmu_write(sock, "hi there2 from client", 22);
+    cmu_write(sock, "hi there3 from client", 22);
+    cmu_write(sock, "hi there4 from client", 22);
+    cmu_write(sock, "hi there5 from client", 22);
+    cmu_write(sock, "hi there6 from client", 22);
+    n = cmu_read(sock, buf, 200, NO_FLAG);
+    for(int i = 0; i < n; i++) {
+        printf("%c", buf[i]);
+    }
+    printf("\n");
 
+    cmu_write(sock, "hi there7 from client", 22);
+    n = cmu_read(sock, buf, 200, NO_FLAG);
+    //printf("R: %s\n", buf);
+    for(int i = 0; i < n; i++) {
+        printf("%c", buf[i]);
+    }
+    printf("\n");
     read = cmu_read(sock, buf, 200, NO_WAIT);
     printf("Read: %d\n", read);
 

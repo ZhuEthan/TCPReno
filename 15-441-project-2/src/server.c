@@ -28,14 +28,24 @@ void functionality(cmu_socket_t  * sock){
     FILE *fp;
     int n;
     n = cmu_read(sock, buf, 200, NO_FLAG);
-    printf("R: %s\n", buf);
+    //printf("R: %s\n", buf);
+    printf("R: ");
+    for(int i = 0; i < n; i++) {
+        printf("%c", buf[i]);
+    }
+    printf("\n");
     printf("N: %d\n", n);
-    cmu_write(sock, "hi there", 9);
+    cmu_write(sock, "hi there from server1", 22);
     cmu_read(sock, buf, 200, NO_FLAG);
-    cmu_write(sock, "hi there", 9);
+    cmu_write(sock, "hi there from server2", 22);
 
     sleep(5);
     n = cmu_read(sock, buf, 9898, NO_FLAG);
+    printf("R: ");
+    for(int i = 0; i < n; i++) {
+        printf("%c", buf[i]);
+    }
+    printf("\n");
     printf("N: %d\n", n);
     fp = fopen("/vagrant/15-441-project-2/tests/file.c", "w+");
     //each item 1 bytes, n items. 
