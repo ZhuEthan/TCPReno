@@ -38,7 +38,7 @@ void functionality(cmu_socket_t  * sock){
 
     fp = fopen("/vagrant/15-441-project-2/src/cmu_tcp.c", "rb");
     read = 1;
-    while(read > 0 ){
+    while(read > 0){
         read = fread(buf, 1, 2000, fp);
         if(read > 0)
             cmu_write(sock, buf, read);
@@ -80,6 +80,7 @@ int main(int argc, char **argv) {
     //TODO: It will forever loop without funcionality
     //sleep(30000);
     functionality(&socket);
+    //sleep(5);
 
     if(cmu_close(&socket) < 0)
         exit(EXIT_FAILURE);

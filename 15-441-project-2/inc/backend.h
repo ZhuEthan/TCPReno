@@ -4,6 +4,7 @@
 #include "global.h"
 #include "cmu_packet.h"
 #include "handler.h"
+#include "util.h"
 
 int check_ack(cmu_socket_t * dst, uint32_t seq);
 void check_for_data(cmu_socket_t * dst, int flags);

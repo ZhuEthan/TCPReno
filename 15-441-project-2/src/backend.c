@@ -19,6 +19,13 @@ int check_ack(cmu_socket_t *sock, uint32_t seq) {
   return result;
 }
 
+int check_fin(cmu_socket_t *sock) {
+  if (sock->fin_received > 0) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
 /*
  * Param: sock - The socket used for handling packets received
  * Param: pkt - The packet data received by the socket
@@ -56,6 +63,7 @@ int check_ack(cmu_socket_t *sock, uint32_t seq) {
           __prev = 0x0, __next = 0x0}}, __size = '\000' <repeats 39 times>,
  __align = 0}}} *pkt '\000'
  pkt is the received packet
+ // Is to handle message and send back ACK
  */
 void handle_message(cmu_socket_t *sock, char *pkt) {
   char *rsp;
@@ -64,19 +72,26 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
   socklen_t conn_len = sizeof(sock->conn);
   switch (flags) {
   case ACK_FLAG_MASK:
-    if (get_ack(pkt) > sock->window.last_ack_received)
+    printf("received ACK_FLAG_MASK\n");
+    if (get_ack(pkt) > sock->window.last_ack_received) {
       sock->window.last_ack_received = get_ack(pkt);
+    }
+    printf("window last_ack_received becomes %d\n", get_ack(pkt));
     break;
   case FIN_FLAG_MASK:
+    printf("received FIN_FLAG_MASK\n");
     seq = get_seq(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq/*ignore*/,
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), get_ack(pkt)/*ignore*/,
                             seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                             ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
+    printf("send back ack with number %d\n", seq+1);
+    sock->fin_received = seq;
     free(rsp);
     break;
   case SYN_FLAG_MASK:
+    printf("received SYN_FLAG_MASK\n");
     seq = get_seq(pkt);
     rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*random*/,
                             seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
@@ -84,26 +99,35 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
 
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
+    printf("send back SYN|ACK with %d\n", seq+1);
+    sock->window.last_ack_received = 501;
+    sock->window.last_seq_received = seq;
     free(rsp);
     break;
   case SYN_FLAG_MASK | ACK_FLAG_MASK:
+    printf("received SYN_FLAG_MASK/ACK_FLAG_MASK\n");
     seq = get_seq(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq/*ignore*/, 
+    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*ignore*/, 
                           seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
                           ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
-    if (get_ack(pkt) > sock->window.last_ack_received)
+    printf("send back ack with %d\n", seq+1);
+    if (get_ack(pkt) > sock->window.last_ack_received) {
       sock->window.last_ack_received = get_ack(pkt);
+      sock->window.last_seq_received = seq;
+    }
     free(rsp);
     break;
   default: // established state == NO_FLAG
+    printf("received data request\n");
     seq = get_seq(pkt);
     rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq/*ignore*/,
                             seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                             ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
+    printf("send back ack with %d\n", seq+1);
     free(rsp);
 
     if (seq > sock->window.last_seq_received ||
@@ -197,10 +221,6 @@ void check_for_data(cmu_socket_t *sock, int flags) {
   uint32_t plen = 0, buf_size = 0, n = 0;
   fd_set ackFD;
 
-  struct timeval time_out;
-  time_out.tv_sec = 3;
-  time_out.tv_usec = 0;
-
   while (pthread_mutex_lock(&(sock->recv_lock)) != 0)
     ;
   switch (flags) {
@@ -212,11 +232,14 @@ void check_for_data(cmu_socket_t *sock, int flags) {
     FD_ZERO(&ackFD);
     FD_SET(sock->socket, &ackFD);
     int nread = 0;
-    if ((nread = select(sock->socket + 1, &ackFD, NULL, NULL, &time_out)) <=
-        0) {
+    //printf("time out for %ld seconds %ld microsec\n", time_out.tv_sec, time_out.tv_usec);
+    
+    printf("estimated RTT is %lu, timeout is %lu, diviation is %lu\n", 
+        (sock->timeout).estimated_rtt, (sock->timeout).timeout, (sock->timeout).diviation);
+    struct timeval t_eval = usecs_to_timeval((sock->timeout).timeout);
+    if ((nread = select(sock->socket + 1, &ackFD, NULL, NULL, &t_eval) <= 0)) {
       break;
     }
-  // The
   case NO_WAIT:
     len =
         recvfrom(sock->socket, hdr, DEFAULT_HEADER_LEN, MSG_DONTWAIT | MSG_PEEK,
@@ -240,26 +263,70 @@ void check_for_data(cmu_socket_t *sock, int flags) {
   pthread_mutex_unlock(&(sock->recv_lock));
 }
 
-void init_tcp_handshake(cmu_socket_t *sock) {
+
+void tcp_teardown_handshake(cmu_socket_t *sock) {
+  uint32_t last_ack_received = sock->window.last_ack_received;
+
   socklen_t conn_len = sizeof(sock->conn);
-  char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 1000/*random*/,
-                                0/*ignore*/, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
-                                SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
-  sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0,
-         (struct sockaddr *)&(sock->conn), conn_len);
+  char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), last_ack_received, 0/*ignore*/,
+                                DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                                FIN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+
+  if (sock->fin_received == 0) { // proactively init FIN. 
+    printf("actively finish the connection\n");
+    while (TRUE) {
+      sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+      printf("actively send fin package with seq number %d \n", last_ack_received);
+      check_for_data(sock, TIMEOUT);
+      if (check_fin(sock) && check_ack(sock, last_ack_received)) {
+        break;
+      }
+      printf("waiting for ack and fin\n");
+    }
+    struct timeval start_time = get_time_stamp();
+    while (TRUE) {
+      check_for_data(sock, TIMEOUT); // TODO: change to two segment lifetimes. 
+      struct timeval cur_time = get_time_stamp();
+      struct timeval elapsed_time = elapsed_time_seconds(start_time, cur_time);
+      if (timeval_to_usecs(elapsed_time) > 1000000) {
+        break;
+      }
+    }
+  } else { // already received fin
+    printf("passively finish the connection\n");
+    while (TRUE) {
+      sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+      printf("passively send fin package with seq number %d, last_ack_received is %d\n", last_ack_received, last_ack_received);
+      check_for_data(sock, TIMEOUT);
+      if (check_ack(sock, last_ack_received)) {
+        break;
+      }
+    }
+  }
+
+  printf("tear down happened\n");
   free(pkt);
 }
 
-void init_teardown_tcp(cmu_socket_t *sock) {
-  socklen_t conn_len = sizeof(sock->conn);
-  uint32_t seq = sock->window.last_ack_received;
-  char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq, seq/*ignore*/,
-                                DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
-                                FIN_FLAG_MASK, 1, 0, NULL, NULL, 0);
-  sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0,
+void tcp_init_handshake(cmu_socket_t *sock) {
+  if (sock->type == TCP_INITIATOR) {
+    socklen_t conn_len = sizeof(sock->conn);
+    char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 1000/*random*/,
+                                0/*ignore*/, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                                SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    printf("send init syn with number %d\n", 1000);
+    int seq = sock->window.last_ack_received;
+    while (TRUE) {
+      printf("init_handshake loop");
+      sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0,
          (struct sockaddr *)&(sock->conn), conn_len);
-  printf("tear down happened\n");
-  free(pkt);
+      check_for_data(sock, TIMEOUT);
+      if (check_ack(sock, seq)) {
+        break;
+      }
+    }
+    free(pkt);
+  }
 }
 
 /*
@@ -274,6 +341,7 @@ void init_teardown_tcp(cmu_socket_t *sock) {
  *
  */
 void single_send(cmu_socket_t *sock, char *data, int buf_len) {
+  printf("single_send\n");
   char *msg;
   char *data_offset = data;
   int sockfd, plen;
@@ -300,16 +368,26 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
         buf_len -= MAX_DLEN;
       }
       while (TRUE) {
+        printf("waiting ack in single_send\n");
+        struct timeval send_time = get_time_stamp();
         sendto(sockfd, msg, plen, 0, (struct sockaddr *)&(sock->conn),
                conn_len);
+        printf("send msg with seq number %d\n", seq);
         check_for_data(sock, TIMEOUT);
-        if (check_ack(sock, seq))
+        if (check_ack(sock, seq)) {
+          struct timeval ack_time = get_time_stamp();
+          struct timeval rtt = elapsed_time_seconds(send_time, ack_time);
+          sock->timeout = next_wait_time((sock->timeout).estimated_rtt, rtt, (sock->timeout).diviation);
+          //printf("estimated RTT is %lu, timeout is %lu, diviation is %lu\n", 
+            //(sock->timeout).estimated_rtt, (sock->timeout).timeout, (sock->timeout).diviation);
           break;
+        }
       }
       data_offset = data_offset + plen - DEFAULT_HEADER_LEN;
     }
   }
 }
+
 
 /*
  * Param: in - the socket that is used for backend processing
@@ -383,10 +461,7 @@ void *begin_backend(void *in) {
 
   printf("begin_backend\n");
 
-  if (dst->type == TCP_INITIATOR) {
-    init_tcp_handshake(dst);
-    check_for_data(dst, TIMEOUT);
-  }
+  tcp_init_handshake(in);
 
   // NOTICE this forever loop.
   while (TRUE) {
@@ -430,8 +505,7 @@ void *begin_backend(void *in) {
     }
   }
 
-  init_teardown_tcp(dst);
-  check_for_data(dst, TIMEOUT);
+  tcp_teardown_handshake(dst);
 
   pthread_exit(NULL);
   return NULL;

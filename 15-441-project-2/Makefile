@@ -6,7 +6,8 @@ CC=gcc
 FLAGS = -pthread -fPIC -g -ggdb -Wall -DDEBUG -I$(INC_DIR)
 OBJS = $(BUILD_DIR)/cmu_packet.o \
 	$(BUILD_DIR)/cmu_tcp.o \
-	$(BUILD_DIR)/backend.o
+	$(BUILD_DIR)/backend.o \
+	$(BUILD_DIR)/util.o
 
 default:all
 all: server client testing_server
@@ -34,6 +35,18 @@ test:
 clean:
 	-rm -f $(BUILD_DIR)/*.o peer client server
 	-rm tests/testing_server
+
+startCapture: 
+	utils/capture_packets.sh start capture.pcap
+
+stopCapture:
+	utils/capture_packets.sh stop capture.pcap
+
+tcconfig-show:
+	tcshow enp0s8
+
+tcconfig-set:
+	tcset enp0s8 --loss 50%	--overwrite
 
 debug:
 	gdb -tui ./server
