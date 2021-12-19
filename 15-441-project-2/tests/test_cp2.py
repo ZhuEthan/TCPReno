@@ -96,7 +96,7 @@ def test_sequence_number():
         print("Testing payload size " + str(len(payload)))
         with Connection(host=TESTING_HOST_IP, user='vagrant',
                         connect_kwargs={'password':'vagrant'}) as conn:
-            try:
+            #try:
                 #conn.run(START_TESTING_SERVER_CMD)
                 #conn.run('tmux has-session -t pytest_server')
                 syn_pkt = eth/ip/udp/CMUTCP(plen=25, seq_num=1000, flags=SYN_MASK)
@@ -128,20 +128,24 @@ def test_sequence_number():
                 data_pkt = eth/ip/udp/CMUTCP(plen=25 + len(payload), 
                                              seq_num=1001, 
                                              ack_num=syn_ack_pkt[CMUTCP].seq_num + 1, 
-                                             flags=ACK_MASK)/Raw(load=payload)
+                                             flags=0)/Raw(load=payload)
                 
                 server_ack_pkt = srp1(data_pkt, timeout=TIMEOUT, iface=IFNAME)
 
-                #if (server_ack_pkt is None or 
-                #    server_ack_pkt[CMUTCP].flags != ACK_MASK or 
-                #    server_ack_pkt[CMUTCP].ack_num != 1001 + len(payload)):
-                #    print("Listener (server) did not properly respond to data packet.")
-                #    print("Test Failed")
-                #    #conn.run(STOP_TESTING_SERVER_CMD)
-                #    return
+                if (server_ack_pkt is None or 
+                    server_ack_pkt[CMUTCP].flags != ACK_MASK or 
+                    server_ack_pkt[CMUTCP].ack_num != 1001 + len(payload)):
+                    print("plen is ", len(payload))
+                    print("Listener (server) did not properly respond to data packet.")
+                    print("Test Failed")
+                    #conn.run(STOP_TESTING_SERVER_CMD)
+                    return
                 
                 fin_pkt = eth/ip/udp/CMUTCP(plen=25, seq_num=1000, flags=FIN_MASK)
                 server_fin_ack_pkt = srp1(fin_pkt, timeout=TIMEOUT, iface=IFNAME) 
+
+                print("===========")
+                server_fin_ack_pkt.show()
 
                 if (server_fin_ack_pkt is None or server_fin_ack_pkt[CMUTCP].flags != ACK_MASK):
                     print("Listener (server) did not properly respond to fin packet.")
@@ -149,13 +153,13 @@ def test_sequence_number():
                     #conn.run(STOP_TESTING_SERVER_CMD)
                     return
 
-            finally:
-                pass
+            #finally:
+            #    pass
             #    try:
-            #        #conn.run(STOP_TESTING_SERVER_CMD)
+            #        conn.run(STOP_TESTING_SERVER_CMD)
             #    except Exception as e:
             #        pass # Ignore error here that may occur if server is already shut down
-            print("Test Passed")
+            #print("Test Passed")
     
 
 if __name__=='__main__':

@@ -123,7 +123,7 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
     printf("received data request\n");
     seq = get_seq(pkt);
     rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq/*ignore*/,
-                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                            seq + get_plen(pkt)-get_hlen(pkt), DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                             ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
@@ -232,7 +232,6 @@ void check_for_data(cmu_socket_t *sock, int flags) {
     FD_ZERO(&ackFD);
     FD_SET(sock->socket, &ackFD);
     int nread = 0;
-    //printf("time out for %ld seconds %ld microsec\n", time_out.tv_sec, time_out.tv_usec);
     
     printf("estimated RTT is %lu, timeout is %lu, diviation is %lu\n", 
         (sock->timeout).estimated_rtt, (sock->timeout).timeout, (sock->timeout).diviation);
@@ -309,6 +308,7 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
 }
 
 void tcp_init_handshake(cmu_socket_t *sock) {
+  struct timeval send_time = get_time_stamp();
   if (sock->type == TCP_INITIATOR) {
     socklen_t conn_len = sizeof(sock->conn);
     char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 1000/*random*/,
@@ -322,6 +322,9 @@ void tcp_init_handshake(cmu_socket_t *sock) {
          (struct sockaddr *)&(sock->conn), conn_len);
       check_for_data(sock, TIMEOUT);
       if (check_ack(sock, seq)) {
+        struct timeval ack_time = get_time_stamp();
+        struct timeval rtt = elapsed_time_seconds(send_time, ack_time);
+        sock->timeout = next_wait_time((sock->timeout).estimated_rtt, rtt, (sock->timeout).diviation);
         break;
       }
     }
@@ -378,8 +381,6 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
           struct timeval ack_time = get_time_stamp();
           struct timeval rtt = elapsed_time_seconds(send_time, ack_time);
           sock->timeout = next_wait_time((sock->timeout).estimated_rtt, rtt, (sock->timeout).diviation);
-          //printf("estimated RTT is %lu, timeout is %lu, diviation is %lu\n", 
-            //(sock->timeout).estimated_rtt, (sock->timeout).timeout, (sock->timeout).diviation);
           break;
         }
       }

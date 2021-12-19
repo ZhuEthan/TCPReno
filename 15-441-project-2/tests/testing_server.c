@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     if(cmu_socket(&socket, TCP_LISTENER, portno, serverip) < 0)
         exit(EXIT_FAILURE);
     printf("finished socket\n");
-    functionality(&socket);
+    //functionality(&socket);
 
     sleep(5);
 
