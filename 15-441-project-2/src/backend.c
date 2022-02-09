@@ -150,6 +150,75 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
   }
 }
 
+int swp_in_window(uint32_t seqno, uint32_t min, uint32_t max) {
+  uint32_t diff = seqno - min;
+  if (diff < max - min + 1 && diff >= 0) {
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+//require revist for ack different definition
+void deliverSWP(cmu_socket_t *sock, char *pkt) {
+  window_t* state = &(sock->window);
+  uint8_t flags = get_flags(pkt);
+  if (flags == ACK_FLAG_MASK) {
+    uint32_t ack_seq = get_ack(pkt);
+    if (swp_in_window(ack_seq, state->last_ack_received+1, state->last_seq_sent)) {
+      do {
+        struct send_q_slot* slot;
+
+        slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
+        //cancel timtout TODO; 
+        message_destroy(&(slot->sending_buf));
+        sem_post(&state->send_window_not_full);
+      } while (state->last_ack_received != ack_seq);
+    }
+  }
+
+  if (flags == NO_FLAG) {// data
+    struct recv_q_slot* slot;
+
+    uint32_t data_seq = get_seq(pkt);
+    slot = &state->recvQ[data_seq % RWS];
+    if (!swp_in_window(data_seq, state->next_seq_expected, state->next_seq_expected + RWS - 1)) {
+      return;
+    }
+    message_save_copy(&slot->recv_buf, pkt, get_plen(pkt));
+    slot->received = TRUE;
+    if (data_seq == state->next_seq_expected) {
+
+      while (slot->received) {
+        uint32_t data_len = get_plen(pkt) - DEFAULT_HEADER_LEN;
+        if (sock->received_buf == NULL) {
+          sock->received_buf = malloc(data_len);
+        } else {
+          sock->received_buf =
+              realloc(sock->received_buf, sock->received_len + data_len);
+        }
+        memcpy(sock->received_buf + sock->received_len, pkt + DEFAULT_HEADER_LEN,
+               data_len);
+        sock->received_len += data_len;
+
+        message_destroy(&(slot->recv_buf));
+        slot->received = FALSE;
+        slot = &(state->recvQ[++(state->next_seq_expected) % RWS]);
+      }
+
+      socklen_t conn_len = sizeof(sock->conn);
+      char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), data_seq/*ignore*/,
+                              state->next_seq_expected-1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                              ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+      sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+             (struct sockaddr *)&(sock->conn), conn_len);
+      printf("send back ack with %d\n", data_seq+1);
+      message_destroy(&rsp);
+    }
+
+  }
+}
+
 /*
  * Param: sock - The socket used for receiving data on the connection.
  * Param: flags - Signify different checks for checking on received data.
@@ -388,6 +457,37 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
     }
   }
 }
+
+void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
+  window_t state = sock->window;
+  struct send_q_slot *slot;
+  
+  char* data_offset = data;
+  
+  sem_wait(&(state.send_window_not_full));
+
+// We need a hashmap to map seq back to index. 
+  uint32_t seq = state.last_seq_sent; 
+  uint32_t index = lookup(sock->window.seqToIndex, state.last_seq_sent);//++state.last_seq_sent;
+  slot = &(state.sendQ[index % SWS]);
+
+  //haven't dealt with buf_len greater than MAX_LEN
+  uint32_t plen = DEFAULT_HEADER_LEN + buf_len;
+        // map to the TCP package:
+        // https://book.systemsapproach.org/e2e/tcp.html#segment-format
+  buf_len = 0;
+  char* msg = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
+                                seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
+                                NULL, data_offset, buf_len);
+  
+  message_save_copy(&(slot->sending_buf), msg, plen);
+  //haven't dealt with timeout;
+
+  size_t conn_len = sizeof(sock->conn);
+  sendto(sock->socket, msg, plen, 0, (struct sockaddr *)&(sock->conn),
+               conn_len);
+}
+
 
 
 /*

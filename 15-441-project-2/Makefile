@@ -7,7 +7,9 @@ FLAGS = -pthread -fPIC -g -ggdb -Wall -DDEBUG -I$(INC_DIR)
 OBJS = $(BUILD_DIR)/cmu_packet.o \
 	$(BUILD_DIR)/cmu_tcp.o \
 	$(BUILD_DIR)/backend.o \
-	$(BUILD_DIR)/util.o
+	$(BUILD_DIR)/util.o \
+	$(BUILD_DIR)/hashmap.o \
+
 
 default:all
 all: server client testing_server

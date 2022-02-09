@@ -19,24 +19,53 @@
 #define TRUE 1
 #define FALSE 0
 
+#define SWS 10
+#define RWS 10
+
 #include <stdint.h>
 #include <pthread.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <semaphore.h>
+#include <hashmap.h>
 
 typedef struct {
-	uint32_t last_seq_received;
-	uint32_t last_ack_received;
-	pthread_mutex_t ack_lock;
-} window_t;
-
+    uint32_t seq_num;   /* sequence number of this frame */
+    uint32_t ack_num;   /* ack of received frame */
+    u_char   flags;    /* up to 8 bits worth of flags */
+} swp_hdr;
 
 typedef struct {
 	long estimated_rtt;
 	long diviation;
 	long timeout;
 } tcp_timeout;
+
+typedef struct {
+	uint32_t last_seq_received; //LFR for receiver
+	uint32_t last_ack_received; //LAR for sender
+	pthread_mutex_t ack_lock;
+	
+	//swp_hdr hdr;
+
+	//sender side state
+	uint32_t last_seq_sent; //LFS for sender
+	sem_t send_window_not_full;
+
+	struct send_q_slot {
+		tcp_timeout timeout;
+		char* sending_buf;
+	} sendQ[SWS];
+
+	uint32_t next_seq_expected; //NFE next frame expected
+	struct recv_q_slot {
+		int received;
+		char* recv_buf;
+	} recvQ[RWS];
+	
+	struct table* seqToIndex; 
+} window_t;
 
 
 typedef struct {
