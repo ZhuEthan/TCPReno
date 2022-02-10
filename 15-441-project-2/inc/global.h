@@ -28,7 +28,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <semaphore.h>
-#include <hashmap.h>
 
 typedef struct {
     uint32_t seq_num;   /* sequence number of this frame */
@@ -64,7 +63,6 @@ typedef struct {
 		char* recv_buf;
 	} recvQ[RWS];
 	
-	struct table* seqToIndex; 
 } window_t;
 
 

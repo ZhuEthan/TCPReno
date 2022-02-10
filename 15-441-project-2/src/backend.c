@@ -467,9 +467,8 @@ void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
   sem_wait(&(state.send_window_not_full));
 
 // We need a hashmap to map seq back to index. 
-  uint32_t seq = state.last_seq_sent; 
-  uint32_t index = lookup(sock->window.seqToIndex, state.last_seq_sent);//++state.last_seq_sent;
-  slot = &(state.sendQ[index % SWS]);
+  uint32_t seq = ++state.last_seq_sent; 
+  slot = &(state.sendQ[seq % SWS]);
 
   //haven't dealt with buf_len greater than MAX_LEN
   uint32_t plen = DEFAULT_HEADER_LEN + buf_len;
