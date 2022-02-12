@@ -163,20 +163,35 @@ int swp_in_window(uint32_t seqno, uint32_t min, uint32_t max) {
 void deliverSWP(cmu_socket_t *sock, char *pkt) {
   window_t* state = &(sock->window);
   uint8_t flags = get_flags(pkt);
+  //sender: let's use the brute-force way to destroy message instead of fancy data stucture at first
   if (flags == ACK_FLAG_MASK) {
     uint32_t ack_seq = get_ack(pkt);
     if (swp_in_window(ack_seq, state->last_ack_received+1, state->last_seq_sent)) {
-      do {
+      /*do {
         struct send_q_slot* slot;
 
+        //slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
         slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
         //cancel timtout TODO; 
         message_destroy(&(slot->sending_buf));
         sem_post(&state->send_window_not_full);
-      } while (state->last_ack_received != ack_seq);
+      } while (state->last_ack_received != ack_seq);*/
+
+      for (int i = 0; i < SWS; i++) {
+        struct send_q_slot* slot;
+        if (state->sendQ[i].sending_buf != NULL && state->sendQ[i].start_seq < ack_seq) {
+          slot = &(state->sendQ[i]);
+          //cancel timtout TODO; 
+          message_destroy(&(slot->sending_buf));
+          state->sendQ[i].start_seq = 0;
+          sem_post(&state->send_window_not_full); 
+        }
+      }
+      state->last_ack_received = ack_seq;
     }
   }
 
+  //receiver
   if (flags == NO_FLAG) {// data
     struct recv_q_slot* slot;
 

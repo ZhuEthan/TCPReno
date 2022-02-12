@@ -28,6 +28,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <semaphore.h>
+#include <hashmap.h>
 
 typedef struct {
     uint32_t seq_num;   /* sequence number of this frame */
@@ -42,26 +43,29 @@ typedef struct {
 } tcp_timeout;
 
 typedef struct {
-	uint32_t last_seq_received; //LFR for receiver
-	uint32_t last_ack_received; //LAR for sender
+	uint32_t last_seq_received; //LFR for receiver -- Last Byte Read
+	uint32_t last_ack_received; //LAR for sender -- Last Byte Acked
 	pthread_mutex_t ack_lock;
 	
 	//swp_hdr hdr;
 
 	//sender side state
-	uint32_t last_seq_sent; //LFS for sender
+	uint32_t last_seq_sent; //LFS for sender -- Last Byte Sent
 	sem_t send_window_not_full;
 
 	struct send_q_slot {
 		tcp_timeout timeout;
 		char* sending_buf;
+		uint32_t start_seq;
 	} sendQ[SWS];
 
-	uint32_t next_seq_expected; //NFE next frame expected
+	uint32_t next_seq_expected; //NFE next frame expected -- Next Byte Expected
 	struct recv_q_slot {
 		int received;
 		char* recv_buf;
 	} recvQ[RWS];
+
+	table* seqToIndex;
 	
 } window_t;
 
