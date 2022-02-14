@@ -100,7 +100,7 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
     printf("send back SYN|ACK with %d\n", seq+1);
-    sock->window.last_ack_received = 501;
+    sock->window.last_ack_received = 501;//random
     sock->window.last_seq_received = seq;
     free(rsp);
     break;
@@ -123,13 +123,12 @@ void handle_message(cmu_socket_t *sock, char *pkt) {
     printf("received data request\n");
     seq = get_seq(pkt);
     rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq/*ignore*/,
-                            seq + get_plen(pkt)-get_hlen(pkt), DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                             ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
     printf("send back ack with %d\n", seq+1);
     free(rsp);
-
     if (seq > sock->window.last_seq_received ||
         (seq == 0 && sock->window.last_seq_received == 0)) {
 
@@ -167,27 +166,14 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
   if (flags == ACK_FLAG_MASK) {
     uint32_t ack_seq = get_ack(pkt);
     if (swp_in_window(ack_seq, state->last_ack_received+1, state->last_seq_sent)) {
-      /*do {
+      do {
         struct send_q_slot* slot;
 
-        //slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
         slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
         //cancel timtout TODO; 
         message_destroy(&(slot->sending_buf));
         sem_post(&state->send_window_not_full);
-      } while (state->last_ack_received != ack_seq);*/
-
-      for (int i = 0; i < SWS; i++) {
-        struct send_q_slot* slot;
-        if (state->sendQ[i].sending_buf != NULL && state->sendQ[i].start_seq < ack_seq) {
-          slot = &(state->sendQ[i]);
-          //cancel timtout TODO; 
-          message_destroy(&(slot->sending_buf));
-          state->sendQ[i].start_seq = 0;
-          sem_post(&state->send_window_not_full); 
-        }
-      }
-      state->last_ack_received = ack_seq;
+      } while (state->last_ack_received != ack_seq);
     }
   }
 
@@ -481,15 +467,14 @@ void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
   
   sem_wait(&(state.send_window_not_full));
 
-// We need a hashmap to map seq back to index. 
-  uint32_t seq = ++state.last_seq_sent; 
-  slot = &(state.sendQ[seq % SWS]);
-
   //haven't dealt with buf_len greater than MAX_LEN
   uint32_t plen = DEFAULT_HEADER_LEN + buf_len;
-        // map to the TCP package:
-        // https://book.systemsapproach.org/e2e/tcp.html#segment-format
-  buf_len = 0;
+
+  uint32_t seq = ++state.last_seq_sent;
+  slot = &state.sendQ[seq % SWS];
+
+  // map to the TCP package:
+  // https://book.systemsapproach.org/e2e/tcp.html#segment-format
   char* msg = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
                                 seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
                                 NULL, data_offset, buf_len);
