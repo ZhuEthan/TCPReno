@@ -9,13 +9,13 @@
  */
 int check_ack(cmu_socket_t *sock, uint32_t seq) {
   int result;
-  while (pthread_mutex_lock(&(sock->window.ack_lock)) != 0)
-    ;
+  //while (pthread_mutex_lock(&(sock->window.ack_lock)) != 0)
+    //;
   if (sock->window.last_ack_received > seq)
     result = TRUE;
   else
     result = FALSE;
-  pthread_mutex_unlock(&(sock->window.ack_lock));
+  //pthread_mutex_unlock(&(sock->window.ack_lock));
   return result;
 }
 
@@ -303,9 +303,10 @@ void check_for_data(cmu_socket_t *sock, int flags) {
     FD_SET(sock->socket, &ackFD);
     int nread = 0;
     
-    printf("estimated RTT is %lu, timeout is %lu, diviation is %lu\n", 
-        (sock->timeout).estimated_rtt, (sock->timeout).timeout, (sock->timeout).diviation);
+    //printf("estimated RTT is %lu, timeout is %lu, diviation is %lu\n", 
+        //(sock->timeout).estimated_rtt, (sock->timeout).timeout, (sock->timeout).diviation);
     struct timeval t_eval = usecs_to_timeval((sock->timeout).timeout);
+    //printf("timeout time is %ld us\n", (sock->timeout).timeout);
     if ((nread = select(sock->socket + 1, &ackFD, NULL, NULL, &t_eval) <= 0)) {
       break;
     }
@@ -347,13 +348,16 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
       sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
       printf("actively send fin package with seq number %d \n", last_ack_received);
       check_for_data(sock, TIMEOUT);
+      //printf("fin_received %d\n", sock->fin_received);
+      //printf("last ack received %d, original is %d\n", sock->window.last_ack_received, last_ack_received);
       if (check_fin(sock) && check_ack(sock, last_ack_received)) {
         break;
       }
-      printf("waiting for ack and fin\n");
+      //printf("waiting for ack and fin\n");
     }
     struct timeval start_time = get_time_stamp();
     while (TRUE) {
+      printf("timeout time is %ld us\n", sock->timeout.timeout);
       check_for_data(sock, TIMEOUT); // TODO: change to two segment lifetimes. 
       struct timeval cur_time = get_time_stamp();
       struct timeval elapsed_time = elapsed_time_seconds(start_time, cur_time);
@@ -361,7 +365,7 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
         break;
       }
     }
-  } else { // already received fin
+  } else { // already received fin, right side of the textbook graph. 
     printf("passively finish the connection\n");
     while (TRUE) {
       sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
