@@ -342,7 +342,7 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
                                 DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                                 FIN_FLAG_MASK, 1, 0, NULL, NULL, 0);
 
-  if (sock->fin_received == 0) { // proactively init FIN. 
+  if (sock->fin_received == 0) { // proactively init FIN. expecting ACK alone first, and then FIN from the other side
     printf("actively finish the connection\n");
     while (TRUE) {
       sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
@@ -357,6 +357,7 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
     }
     struct timeval start_time = get_time_stamp();
     while (TRUE) {
+      printf("in the closing phase\n");
       check_for_data(sock, TIMEOUT); // TODO: change to two segment lifetimes. 
       struct timeval cur_time = get_time_stamp();
       struct timeval elapsed_time = elapsed_time_seconds(start_time, cur_time);
@@ -390,7 +391,7 @@ void tcp_init_handshake(cmu_socket_t *sock) {
     printf("send init syn with number %d\n", 1000);
     int seq = sock->window.last_ack_received;
     while (TRUE) {
-      printf("init_handshake loop");
+      printf("init_handshake loop\n");
       sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0,
          (struct sockaddr *)&(sock->conn), conn_len);
       check_for_data(sock, TIMEOUT);
@@ -443,9 +444,9 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
                                 NULL, data_offset, MAX_DLEN);
         buf_len -= MAX_DLEN;
       }
+      struct timeval send_time = get_time_stamp();
       while (TRUE) {
         printf("waiting ack in single_send\n");
-        struct timeval send_time = get_time_stamp();
         sendto(sockfd, msg, plen, 0, (struct sockaddr *)&(sock->conn),
                conn_len);
         printf("send msg with seq number %d\n", seq);
