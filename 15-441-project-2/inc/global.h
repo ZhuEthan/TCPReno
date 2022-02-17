@@ -87,6 +87,7 @@ typedef struct {
 	int fin_received;
 	pthread_mutex_t fin_seq_sent_lock;
 	window_t window;
+	FILE *debug_file;
 } cmu_socket_t;
 
 #endif

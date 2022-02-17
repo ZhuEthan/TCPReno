@@ -41,8 +41,9 @@ int cmu_socket(cmu_socket_t *dst, int flag, int port, char *serverIP) {
   dst->window.last_ack_received = 0;
   dst->window.last_seq_received = 0;
   dst->timeout.diviation = 0;
-  dst->timeout.estimated_rtt = 0;
+  dst->timeout.estimated_rtt = 400;
   dst->timeout.timeout = 1000;
+  dst->debug_file = fopen("./debug_file.txt", "w");
   pthread_mutex_init(&(dst->window.ack_lock), NULL);
 
   if (pthread_cond_init(&dst->wait_cond, NULL) != 0) {
@@ -120,6 +121,9 @@ int cmu_close(cmu_socket_t *sock) {
       free(sock->received_buf);
     if (sock->sending_buf != NULL)
       free(sock->sending_buf);
+    if (sock->debug_file != NULL) {
+      fclose(sock->debug_file);
+    }
   } else {
     perror("ERORR Null scoket\n");
     return EXIT_ERROR;

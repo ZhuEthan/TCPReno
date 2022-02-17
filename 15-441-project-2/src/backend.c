@@ -357,7 +357,6 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
     }
     struct timeval start_time = get_time_stamp();
     while (TRUE) {
-      printf("timeout time is %ld us\n", sock->timeout.timeout);
       check_for_data(sock, TIMEOUT); // TODO: change to two segment lifetimes. 
       struct timeval cur_time = get_time_stamp();
       struct timeval elapsed_time = elapsed_time_seconds(start_time, cur_time);
@@ -455,6 +454,9 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
           struct timeval ack_time = get_time_stamp();
           struct timeval rtt = elapsed_time_seconds(send_time, ack_time);
           sock->timeout = next_wait_time((sock->timeout).estimated_rtt, rtt, (sock->timeout).diviation);
+          fprintf(sock->debug_file, "rtt is %ld us\n", timeval_to_usecs(rtt));
+          fprintf(sock->debug_file, "timeout time is %ld us, diviation is %ld us, estimated_rtt is %ld us\n", 
+                sock->timeout.timeout, sock->timeout.diviation, sock->timeout.estimated_rtt);
           break;
         }
       }
