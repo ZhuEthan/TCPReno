@@ -43,6 +43,7 @@ typedef struct {
 
 typedef struct {
 	uint32_t last_seq_received; //LFR for receiver -- Last Byte Read
+	//We don't record LastByteRcvd for receiver
 	uint32_t last_ack_received; //LAR for sender -- Last Byte Acked
 	pthread_mutex_t ack_lock;
 	

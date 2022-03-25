@@ -65,90 +65,94 @@ int check_fin(cmu_socket_t *sock) {
  pkt is the received packet
  // Is to handle message and send back ACK
  */
-void handle_message(cmu_socket_t *sock, char *pkt) {
-  char *rsp;
-  uint8_t flags = get_flags(pkt);
-  uint32_t data_len, seq;
-  socklen_t conn_len = sizeof(sock->conn);
-  switch (flags) {
-  case ACK_FLAG_MASK:
-    printf("received ACK_FLAG_MASK\n");
-    if (get_ack(pkt) > sock->window.last_ack_received) {
-      sock->window.last_ack_received = get_ack(pkt);
-    }
-    printf("window last_ack_received becomes %d\n", get_ack(pkt));
-    break;
-  case FIN_FLAG_MASK:
-    printf("received FIN_FLAG_MASK\n");
-    seq = get_seq(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), get_ack(pkt)/*ignore*/,
-                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
-                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
-    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
-           (struct sockaddr *)&(sock->conn), conn_len);
-    printf("send back ack with number %d\n", seq+1);
-    sock->fin_received = seq;
-    free(rsp);
-    break;
-  case SYN_FLAG_MASK:
-    printf("received SYN_FLAG_MASK\n");
-    seq = get_seq(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*random*/,
-                            seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
-                            ACK_FLAG_MASK | SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+//void handle_message(cmu_socket_t *sock, char *pkt) {
+//  char *rsp;
+//  uint8_t flags = get_flags(pkt);
+//  //uint32_t data_len, seq;
+//  uint32_t seq;
+//  socklen_t conn_len = sizeof(sock->conn);
+//  switch (flags) {
+//  case ACK_FLAG_MASK:
+//    printf("received ACK_FLAG_MASK\n");
+//    /*if (get_ack(pkt) > sock->window.last_ack_received) {
+//      sock->window.last_ack_received = get_ack(pkt);
+//    }
+//    printf("window last_ack_received becomes %d\n", get_ack(pkt));*/
+//    deliverSWP(sock, pkt);
+//    break;
+//  case FIN_FLAG_MASK:
+//    printf("received FIN_FLAG_MASK\n");
+//    seq = get_seq(pkt);
+//    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), get_ack(pkt)/*ignore*/,
+//                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+//                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+//    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+//           (struct sockaddr *)&(sock->conn), conn_len);
+//    printf("send back ack with number %d\n", seq+1);
+//    sock->fin_received = seq;
+//    free(rsp);
+//    break;
+//  case SYN_FLAG_MASK:
+//    printf("received SYN_FLAG_MASK\n");
+//    seq = get_seq(pkt);
+//    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*random*/,
+//                            seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+//                            ACK_FLAG_MASK | SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+//
+//    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+//           (struct sockaddr *)&(sock->conn), conn_len);
+//    printf("send back SYN|ACK with %d\n", seq+1);
+//    sock->window.last_ack_received = 501;//random
+//    sock->window.last_seq_received = seq;
+//    free(rsp);
+//    break;
+//  case SYN_FLAG_MASK | ACK_FLAG_MASK:
+//    printf("received SYN_FLAG_MASK/ACK_FLAG_MASK\n");
+//    seq = get_seq(pkt);
+//    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*ignore*/, 
+//                          seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
+//                          ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+//    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+//           (struct sockaddr *)&(sock->conn), conn_len);
+//    printf("send back ack with %d\n", seq+1);
+//    if (get_ack(pkt) > sock->window.last_ack_received) {
+//      sock->window.last_ack_received = get_ack(pkt);
+//      sock->window.last_seq_received = seq;
+//    }
+//    free(rsp);
+//    break;
+//  default: // established state == NO_FLAG
+//    printf("received data request\n");
+//    //seq = get_seq(pkt);
+//    //rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq/*ignore*/,
+//    //                        seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+//    //                        ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+//    //sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+//    //       (struct sockaddr *)&(sock->conn), conn_len);
+//    deliverSWP(sock, pkt);
+//    //printf("send back ack with %d\n", seq+1);
+//    //free(rsp);
+//    //if (seq > sock->window.last_seq_received ||
+//    //    (seq == 0 && sock->window.last_seq_received == 0)) {
+//
+//    //  sock->window.last_seq_received = seq;
+//    //  data_len = get_plen(pkt) - DEFAULT_HEADER_LEN;
+//    //  if (sock->received_buf == NULL) {
+//    //    sock->received_buf = malloc(data_len);
+//    //  } else {
+//    //    sock->received_buf =
+//    //        realloc(sock->received_buf, sock->received_len + data_len);
+//    //  }
+//    //  memcpy(sock->received_buf + sock->received_len, pkt + DEFAULT_HEADER_LEN,
+//    //         data_len);
+//    //  sock->received_len += data_len;
+//    //}
+//
+//    //break;
+//  }
+//}
 
-    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
-           (struct sockaddr *)&(sock->conn), conn_len);
-    printf("send back SYN|ACK with %d\n", seq+1);
-    sock->window.last_ack_received = 501;//random
-    sock->window.last_seq_received = seq;
-    free(rsp);
-    break;
-  case SYN_FLAG_MASK | ACK_FLAG_MASK:
-    printf("received SYN_FLAG_MASK/ACK_FLAG_MASK\n");
-    seq = get_seq(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*ignore*/, 
-                          seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
-                          ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
-    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
-           (struct sockaddr *)&(sock->conn), conn_len);
-    printf("send back ack with %d\n", seq+1);
-    if (get_ack(pkt) > sock->window.last_ack_received) {
-      sock->window.last_ack_received = get_ack(pkt);
-      sock->window.last_seq_received = seq;
-    }
-    free(rsp);
-    break;
-  default: // established state == NO_FLAG
-    printf("received data request\n");
-    seq = get_seq(pkt);
-    rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq/*ignore*/,
-                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
-                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
-    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
-           (struct sockaddr *)&(sock->conn), conn_len);
-    printf("send back ack with %d\n", seq+1);
-    free(rsp);
-    if (seq > sock->window.last_seq_received ||
-        (seq == 0 && sock->window.last_seq_received == 0)) {
-
-      sock->window.last_seq_received = seq;
-      data_len = get_plen(pkt) - DEFAULT_HEADER_LEN;
-      if (sock->received_buf == NULL) {
-        sock->received_buf = malloc(data_len);
-      } else {
-        sock->received_buf =
-            realloc(sock->received_buf, sock->received_len + data_len);
-      }
-      memcpy(sock->received_buf + sock->received_len, pkt + DEFAULT_HEADER_LEN,
-             data_len);
-      sock->received_len += data_len;
-    }
-
-    break;
-  }
-}
-
+//min included and max included
 int swp_in_window(uint32_t seqno, uint32_t min, uint32_t max) {
   uint32_t diff = seqno - min;
   if (diff < max - min + 1 && diff >= 0) {
@@ -162,10 +166,11 @@ int swp_in_window(uint32_t seqno, uint32_t min, uint32_t max) {
 void deliverSWP(cmu_socket_t *sock, char *pkt) {
   window_t* state = &(sock->window);
   uint8_t flags = get_flags(pkt);
-  //sender: let's use the brute-force way to destroy message instead of fancy data stucture at first
+  //sender of the data
   if (flags == ACK_FLAG_MASK) {
     uint32_t ack_seq = get_ack(pkt);
-    if (swp_in_window(ack_seq, state->last_ack_received+1, state->last_seq_sent)) {
+    printf("received ACK_FLAG_MASK in deliverSWP\n");
+    if (swp_in_window(ack_seq, state->last_ack_received+1, state->last_seq_sent+1)) {
       do {
         struct send_q_slot* slot;
 
@@ -175,10 +180,9 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
         sem_post(&state->send_window_not_full);
       } while (state->last_ack_received != ack_seq);
     }
-  }
-
-  //receiver
-  if (flags == NO_FLAG) {// data
+  } else if (flags == NO_FLAG) {// data
+    printf("received data request in deliverSWP\n");
+    //receiver of the data
     struct recv_q_slot* slot;
 
     uint32_t data_seq = get_seq(pkt);
@@ -190,7 +194,7 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     slot->received = TRUE;
     if (data_seq == state->next_seq_expected) {
 
-      while (slot->received) {
+      while (slot->received) { // loop reading consecutive arrived data as much as possible. 
         uint32_t data_len = get_plen(pkt) - DEFAULT_HEADER_LEN;
         if (sock->received_buf == NULL) {
           sock->received_buf = malloc(data_len);
@@ -207,16 +211,72 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
         slot = &(state->recvQ[++(state->next_seq_expected) % RWS]);
       }
 
-      socklen_t conn_len = sizeof(sock->conn);
+      socklen_t conn_len = sizeof(sock->conn); // the ack is the furthest seq it has received
       char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), data_seq/*ignore*/,
-                              state->next_seq_expected-1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                              state->next_seq_expected, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                               ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
       sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
              (struct sockaddr *)&(sock->conn), conn_len);
-      printf("send back ack with %d\n", data_seq+1);
+      printf("send back ack with %d\n", state->next_seq_expected);
       message_destroy(&rsp);
     }
+  } else if (flags == SYN_FLAG_MASK) {
+    printf("received SYN_FLAG_MASK in deliverSWP\n");
+    //receiver of the data
+    struct recv_q_slot* slot;
 
+    uint32_t seq = get_seq(pkt);
+    slot = &state->recvQ[seq % RWS];
+    socklen_t conn_len = sizeof(sock->conn);
+
+    /*if (!swp_in_window(seq, state->next_seq_expected, state->next_seq_expected + RWS - 1)) {
+      return;
+    }*/
+
+    message_save_copy(&slot->recv_buf, pkt, get_plen(pkt));
+    slot->received = TRUE;
+    state->next_seq_expected = seq + 1;
+    state->last_seq_received = seq;
+
+    char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*random*/,
+                            seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                            ACK_FLAG_MASK | SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+           (struct sockaddr *)&(sock->conn), conn_len);
+    state->last_seq_sent = 500;
+    printf("send back SYN|ACK with %d(SYN), %d(ACK)\n", 500, seq+1);
+    //sock->window.last_ack_received = 501;//random
+    //sock->window.last_seq_received = seq;
+    free(rsp);
+  } else if (flags == (SYN_FLAG_MASK | ACK_FLAG_MASK)) {
+    printf("received SYN_FLAG_MASK/ACK_FLAG_MASK in deliverSWP\n");
+    // sender side double check
+    uint32_t seq = get_seq(pkt);
+
+    if (swp_in_window(seq, state->last_ack_received+1, state->last_seq_sent+1)) {
+      printf("seq %d in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
+      do {
+        struct send_q_slot* slot;
+        slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
+        printf("last_ack_received is %d\n", state->last_ack_received);
+        message_destroy(&(slot->sending_buf));
+        sem_post(&state->send_window_not_full);
+      } while (state->last_ack_received != seq);
+
+      socklen_t conn_len = sizeof(sock->conn);
+      char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*ignore*/, 
+                          seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
+                          ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+      sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+      printf("send back ack with %d\n", seq+1);
+      if (get_ack(pkt) > sock->window.last_ack_received) {
+        sock->window.last_ack_received = get_ack(pkt);
+        sock->window.last_seq_received = seq;
+      }
+      free(rsp);
+    } else {
+      printf("seq %d is not in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
+    }
   }
 }
 
@@ -327,7 +387,8 @@ void check_for_data(cmu_socket_t *sock, int flags) {
                    (struct sockaddr *)&(sock->conn), &conn_len);
       buf_size = buf_size + n;
     }
-    handle_message(sock, pkt);
+    //handle_message(sock, pkt);
+    deliverSWP(sock, pkt);
     free(pkt);
   }
   pthread_mutex_unlock(&(sock->recv_lock));
@@ -388,6 +449,7 @@ void tcp_init_handshake(cmu_socket_t *sock) {
     char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 1000/*random*/,
                                 0/*ignore*/, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                                 SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    sock->window.last_seq_sent = 1000;
     printf("send init syn with number %d\n", 1000);
     int seq = sock->window.last_ack_received;
     while (TRUE) {
@@ -447,8 +509,8 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
       struct timeval send_time = get_time_stamp();
       while (TRUE) {
         printf("waiting ack in single_send\n");
-        sendto(sockfd, msg, plen, 0, (struct sockaddr *)&(sock->conn),
-               conn_len);
+        sendto(sockfd, msg, plen, 0, (struct sockaddr *)&(sock->conn), conn_len);
+        //sendSWP(sock, msg, plen);
         printf("send msg with seq number %d\n", seq);
         check_for_data(sock, TIMEOUT);
         if (check_ack(sock, seq)) {
@@ -466,6 +528,8 @@ void single_send(cmu_socket_t *sock, char *data, int buf_len) {
   }
 }
 
+
+// doesn't resend yet
 void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
   window_t state = sock->window;
   struct send_q_slot *slot;
@@ -588,10 +652,10 @@ void *begin_backend(void *in) {
       data = malloc(buf_len);
       memcpy(data, dst->sending_buf, buf_len);
       dst->sending_len = 0;
-      free(dst->sending_buf);
       dst->sending_buf = NULL;
       pthread_mutex_unlock(&(dst->send_lock));
-      single_send(dst, data, buf_len);
+      //single_send(dst, data, buf_len);
+      sendSWP(dst, data, buf_len);
       free(data);
     } else
       pthread_mutex_unlock(&(dst->send_lock));
