@@ -163,37 +163,43 @@ int swp_in_window(uint32_t seqno, uint32_t min, uint32_t max) {
 }
 
 //require revist for ack different definition
+// data message will be stored in array, either in client side or server side. 
 void deliverSWP(cmu_socket_t *sock, char *pkt) {
   window_t* state = &(sock->window);
   uint8_t flags = get_flags(pkt);
+  socklen_t conn_len = sizeof(sock->conn);
   //sender of the data
   if (flags == ACK_FLAG_MASK) {
     uint32_t ack_seq = get_ack(pkt);
-    printf("received ACK_FLAG_MASK in deliverSWP\n");
+    printf("received ACK_FLAG_MASK in deliverSWP with ack_seq %d\n", ack_seq);
+    printSWP(sock, "sender");
     if (swp_in_window(ack_seq, state->last_ack_received+1, state->last_seq_sent+1)) {
+      printf("in ACK_FLAG_MASK ack_seq %d is between [%d, %d]\n", ack_seq, state->last_ack_received+1, state->last_seq_sent+1);
       do {
         struct send_q_slot* slot;
 
         slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
-        //cancel timtout TODO; 
-        message_destroy(&(slot->sending_buf));
+        //cancel timtout TODO;
+        message_destroy(&(slot->sending_buf)); //TODO, segment error for three-time shake in server side
         sem_post(&state->send_window_not_full);
       } while (state->last_ack_received != ack_seq);
+    } else {
+      printf("in ACK_FLAG_MASK ack_seq %d is not between [%d, %d]\n", ack_seq, state->last_ack_received+1, state->last_seq_sent+1);
     }
   } else if (flags == NO_FLAG) {// data
-    printf("received data request in deliverSWP\n");
     //receiver of the data
     struct recv_q_slot* slot;
 
     uint32_t data_seq = get_seq(pkt);
+    printf("received data request in deliverSWP, with data_seq %d\n", data_seq);
     slot = &state->recvQ[data_seq % RWS];
     if (!swp_in_window(data_seq, state->next_seq_expected, state->next_seq_expected + RWS - 1)) {
       return;
     }
-    message_save_copy(&slot->recv_buf, pkt, get_plen(pkt));
+    message_save_copy(&slot->recv_buf, pkt, get_plen(pkt)); // server side: store the coming message data for furthur reading. 
     slot->received = TRUE;
     if (data_seq == state->next_seq_expected) {
-
+      printf("data_seq %d is equal with state->next_seq_expected in NO_FLAG\n", data_seq);
       while (slot->received) { // loop reading consecutive arrived data as much as possible. 
         uint32_t data_len = get_plen(pkt) - DEFAULT_HEADER_LEN;
         if (sock->received_buf == NULL) {
@@ -211,14 +217,15 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
         slot = &(state->recvQ[++(state->next_seq_expected) % RWS]);
       }
 
-      socklen_t conn_len = sizeof(sock->conn); // the ack is the furthest seq it has received
       char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), data_seq/*ignore*/,
                               state->next_seq_expected, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
-                              ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+                              ACK_FLAG_MASK, 1, 0, NULL, NULL, 0); // the ack is the furthest seq it has received
       sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
              (struct sockaddr *)&(sock->conn), conn_len);
       printf("send back ack with %d\n", state->next_seq_expected);
       message_destroy(&rsp);
+    } else {
+      printf("data_seq %d is not equal with state->next_seq_expected %d\n", data_seq, state->next_seq_expected);
     }
   } else if (flags == SYN_FLAG_MASK) {
     printf("received SYN_FLAG_MASK in deliverSWP\n");
@@ -227,57 +234,59 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
 
     uint32_t seq = get_seq(pkt);
     slot = &state->recvQ[seq % RWS];
-    socklen_t conn_len = sizeof(sock->conn);
 
     /*if (!swp_in_window(seq, state->next_seq_expected, state->next_seq_expected + RWS - 1)) {
       return;
     }*/
 
-    message_save_copy(&slot->recv_buf, pkt, get_plen(pkt));
+    //message_save_copy(&slot->recv_buf, pkt, get_plen(pkt));
     slot->received = TRUE;
     state->next_seq_expected = seq + 1;
     state->last_seq_received = seq;
+    state->last_seq_sent = 500;
 
     char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*random*/,
-                            seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                            state->next_seq_expected, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                             ACK_FLAG_MASK | SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
-    state->last_seq_sent = 500;
     printf("send back SYN|ACK with %d(SYN), %d(ACK)\n", 500, seq+1);
-    //sock->window.last_ack_received = 501;//random
-    //sock->window.last_seq_received = seq;
     free(rsp);
   } else if (flags == (SYN_FLAG_MASK | ACK_FLAG_MASK)) {
-    printf("received SYN_FLAG_MASK/ACK_FLAG_MASK in deliverSWP\n");
+    printf("received SYN_FLAG_MASK/ACK_FLAG_MASK in deliverSWP (seq)%d, (ack)%d\n", get_seq(pkt), get_ack(pkt));
     // sender side double check
     uint32_t seq = get_seq(pkt);
 
-    if (swp_in_window(seq, state->last_ack_received+1, state->last_seq_sent+1)) {
-      printf("seq %d in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
-      do {
-        struct send_q_slot* slot;
-        slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
-        printf("last_ack_received is %d\n", state->last_ack_received);
-        message_destroy(&(slot->sending_buf));
-        sem_post(&state->send_window_not_full);
-      } while (state->last_ack_received != seq);
+    //if (swp_in_window(seq, state->last_ack_received+1, state->last_seq_sent+1)) {
+    //printf("seq %d in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
+    //do {
+    //  struct send_q_slot* slot;
+    //  slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
+    //  printf("last_ack_received is %d\n", state->last_ack_received);
+    //  //message_destroy(&(slot->sending_buf));
+    //  sem_post(&state->send_window_not_full);
+    //} while (state->last_ack_received != seq);
 
-      socklen_t conn_len = sizeof(sock->conn);
-      char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*ignore*/, 
-                          seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
-                          ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
-      sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
-      printf("send back ack with %d\n", seq+1);
-      if (get_ack(pkt) > sock->window.last_ack_received) {
-        sock->window.last_ack_received = get_ack(pkt);
-        sock->window.last_seq_received = seq;
-      }
-      free(rsp);
-    } else {
-      printf("seq %d is not in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
-    }
+    
+    char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*ignore*/, 
+                        seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
+                        ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+    printf("in SYN_FLAG_MASK/ACK_FLAG_MASK send back ack with %d\n", seq+1);
+    //if (get_ack(pkt) > sock->window.last_ack_received) {
+    sock->window.last_ack_received = get_ack(pkt);
+    sock->window.last_seq_received = seq;
+    //}
+    free(rsp);
+    //} else {
+      //printf("seq %d is not in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
+    //}
   }
+}
+
+void printSWP(cmu_socket_t *sock, char* clientName) {
+  printf("current sliding window of %s is last_ack_received %d, last_seq_received %d, last_seq_sent %d\n", 
+    clientName, sock->window.last_ack_received, sock->window.last_seq_received, sock->window.last_seq_sent);
 }
 
 /*
@@ -446,21 +455,25 @@ void tcp_init_handshake(cmu_socket_t *sock) {
   struct timeval send_time = get_time_stamp();
   if (sock->type == TCP_INITIATOR) {
     socklen_t conn_len = sizeof(sock->conn);
-    char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 1000/*random*/,
+    int syn_seq = 1000;
+    sock->window.last_seq_sent = syn_seq;
+    char *pkt = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), syn_seq/*random*/,
                                 0/*ignore*/, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                                 SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
-    sock->window.last_seq_sent = 1000;
+    struct send_q_slot* slot = &sock->window.sendQ[syn_seq % SWS];
+    message_save_copy(&(slot->sending_buf), pkt, DEFAULT_HEADER_LEN); 
+    
     printf("send init syn with number %d\n", 1000);
     int seq = sock->window.last_ack_received;
     while (TRUE) {
       printf("init_handshake loop\n");
-      sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0,
-         (struct sockaddr *)&(sock->conn), conn_len);
+      sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
       check_for_data(sock, TIMEOUT);
       if (check_ack(sock, seq)) {
         struct timeval ack_time = get_time_stamp();
         struct timeval rtt = elapsed_time_seconds(send_time, ack_time);
         sock->timeout = next_wait_time((sock->timeout).estimated_rtt, rtt, (sock->timeout).diviation);
+        printf("check_ack successfully\n");
         break;
       }
     }
@@ -479,54 +492,54 @@ void tcp_init_handshake(cmu_socket_t *sock) {
  * Comment: This will need to be updated for checkpoints 1,2,3
  *
  */
-void single_send(cmu_socket_t *sock, char *data, int buf_len) {
-  printf("single_send\n");
-  char *msg;
-  char *data_offset = data;
-  int sockfd, plen;
-  size_t conn_len = sizeof(sock->conn);
-  uint32_t seq;
-
-  sockfd = sock->socket;
-  if (buf_len > 0) {
-    while (buf_len != 0) {
-      seq = sock->window.last_ack_received;
-      if (buf_len <= MAX_DLEN) {
-        plen = DEFAULT_HEADER_LEN + buf_len;
-        // map to the TCP package:
-        // https://book.systemsapproach.org/e2e/tcp.html#segment-format
-        msg = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
-                                seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
-                                NULL, data_offset, buf_len);
-        buf_len = 0;
-      } else {
-        plen = DEFAULT_HEADER_LEN + MAX_DLEN;
-        msg = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
-                                seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
-                                NULL, data_offset, MAX_DLEN);
-        buf_len -= MAX_DLEN;
-      }
-      struct timeval send_time = get_time_stamp();
-      while (TRUE) {
-        printf("waiting ack in single_send\n");
-        sendto(sockfd, msg, plen, 0, (struct sockaddr *)&(sock->conn), conn_len);
-        //sendSWP(sock, msg, plen);
-        printf("send msg with seq number %d\n", seq);
-        check_for_data(sock, TIMEOUT);
-        if (check_ack(sock, seq)) {
-          struct timeval ack_time = get_time_stamp();
-          struct timeval rtt = elapsed_time_seconds(send_time, ack_time);
-          sock->timeout = next_wait_time((sock->timeout).estimated_rtt, rtt, (sock->timeout).diviation);
-          fprintf(sock->debug_file, "rtt is %ld us\n", timeval_to_usecs(rtt));
-          fprintf(sock->debug_file, "timeout time is %ld us, diviation is %ld us, estimated_rtt is %ld us\n", 
-                sock->timeout.timeout, sock->timeout.diviation, sock->timeout.estimated_rtt);
-          break;
-        }
-      }
-      data_offset = data_offset + plen - DEFAULT_HEADER_LEN;
-    }
-  }
-}
+//void single_send(cmu_socket_t *sock, char *data, int buf_len) {
+//  printf("single_send\n");
+//  char *msg;
+//  char *data_offset = data;
+//  int sockfd, plen;
+//  size_t conn_len = sizeof(sock->conn);
+//  uint32_t seq;
+//
+//  sockfd = sock->socket;
+//  if (buf_len > 0) {
+//    while (buf_len != 0) {
+//      seq = sock->window.last_ack_received;
+//      if (buf_len <= MAX_DLEN) {
+//        plen = DEFAULT_HEADER_LEN + buf_len;
+//        // map to the TCP package:
+//        // https://book.systemsapproach.org/e2e/tcp.html#segment-format
+//        msg = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
+//                                seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
+//                                NULL, data_offset, buf_len);
+//        buf_len = 0;
+//      } else {
+//        plen = DEFAULT_HEADER_LEN + MAX_DLEN;
+//        msg = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
+//                                seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
+//                                NULL, data_offset, MAX_DLEN);
+//        buf_len -= MAX_DLEN;
+//      }
+//      struct timeval send_time = get_time_stamp();
+//      while (TRUE) {
+//        printf("waiting ack in single_send\n");
+//        sendto(sockfd, msg, plen, 0, (struct sockaddr *)&(sock->conn), conn_len);
+//        //sendSWP(sock, msg, plen);
+//        printf("send msg with seq number %d\n", seq);
+//        check_for_data(sock, TIMEOUT);
+//        if (check_ack(sock, seq)) {
+//          struct timeval ack_time = get_time_stamp();
+//          struct timeval rtt = elapsed_time_seconds(send_time, ack_time);
+//          sock->timeout = next_wait_time((sock->timeout).estimated_rtt, rtt, (sock->timeout).diviation);
+//          fprintf(sock->debug_file, "rtt is %ld us\n", timeval_to_usecs(rtt));
+//          fprintf(sock->debug_file, "timeout time is %ld us, diviation is %ld us, estimated_rtt is %ld us\n", 
+//                sock->timeout.timeout, sock->timeout.diviation, sock->timeout.estimated_rtt);
+//          break;
+//        }
+//      }
+//      data_offset = data_offset + plen - DEFAULT_HEADER_LEN;
+//    }
+//  }
+//}
 
 
 // doesn't resend yet
@@ -550,7 +563,7 @@ void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
                                 seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
                                 NULL, data_offset, buf_len);
   
-  message_save_copy(&(slot->sending_buf), msg, plen);
+  message_save_copy(&(slot->sending_buf), msg, plen); //every message being sent is also stored
   //haven't dealt with timeout;
 
   size_t conn_len = sizeof(sock->conn);

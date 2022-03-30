@@ -59,7 +59,7 @@ typedef struct {
 		uint32_t start_seq;
 	} sendQ[SWS];
 
-	uint32_t next_seq_expected; //NFE next frame expected -- Next Byte Expected
+	uint32_t next_seq_expected; //NFE next frame expected for receiver -- Next Byte Expected, equal with the ack being sent in receive side
 	struct recv_q_slot {
 		int received;
 		char* recv_buf;

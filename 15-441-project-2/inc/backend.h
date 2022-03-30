@@ -14,5 +14,6 @@ void check_for_data(cmu_socket_t * dst, int flags);
 void * begin_backend(void * in);
 void deliverSWP(cmu_socket_t *sock, char *pkt);
 void sendSWP(cmu_socket_t *sock, char* data, int buf_len);
+void printSWP(cmu_socket_t *sock, char* client);
 
 #endif
