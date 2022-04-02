@@ -19,8 +19,8 @@
 #define TRUE 1
 #define FALSE 0
 
-#define SWS 10
-#define RWS 10
+#define SWS 501
+#define RWS 501 
 
 #include <stdint.h>
 #include <pthread.h>

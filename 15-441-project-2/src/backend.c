@@ -174,14 +174,16 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     printf("received ACK_FLAG_MASK in deliverSWP with ack_seq %d\n", ack_seq);
     printSWP(sock, "sender");
     if (swp_in_window(ack_seq, state->last_ack_received+1, state->last_seq_sent+1)) {
-      printf("in ACK_FLAG_MASK ack_seq %d is between [%d, %d]\n", ack_seq, state->last_ack_received+1, state->last_seq_sent+1);
+      printf("in ACK_FLAG_MASK ack_seq %d is between [%d, %d] the ack_seq should be identical to the upper range", 
+        ack_seq, state->last_ack_received+1, state->last_seq_sent+1);
       do {
         struct send_q_slot* slot;
 
         slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
         //cancel timtout TODO;
-        message_destroy(&(slot->sending_buf)); //TODO, segment error for three-time shake in server side
-        sem_post(&state->send_window_not_full);
+        message_destroy(&(slot->sending_buf)); 
+        //printf("message destroy successfully last_ack_received %d\n", state->last_ack_received);
+        sem_post(&state->send_window_not_full); // release lock
       } while (state->last_ack_received != ack_seq);
     } else {
       printf("in ACK_FLAG_MASK ack_seq %d is not between [%d, %d]\n", ack_seq, state->last_ack_received+1, state->last_seq_sent+1);
@@ -282,6 +284,8 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
       //printf("seq %d is not in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
     //}
   }
+
+  printf("end of deliverSWP\n");
 }
 
 void printSWP(cmu_socket_t *sock, char* clientName) {
@@ -549,7 +553,7 @@ void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
   
   char* data_offset = data;
   
-  sem_wait(&(state.send_window_not_full));
+  sem_wait(&(state.send_window_not_full)); //decrease the lock counter
 
   //haven't dealt with buf_len greater than MAX_LEN
   uint32_t plen = DEFAULT_HEADER_LEN + buf_len;
