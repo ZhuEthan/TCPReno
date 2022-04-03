@@ -278,6 +278,7 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     //if (get_ack(pkt) > sock->window.last_ack_received) {
     sock->window.last_ack_received = get_ack(pkt);
     sock->window.last_seq_received = seq;
+    sock->window.next_seq_expected = seq + 1;
     //}
     free(rsp);
     //} else {
