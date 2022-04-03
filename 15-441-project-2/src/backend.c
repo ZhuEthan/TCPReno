@@ -553,7 +553,6 @@ void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
   
   char* data_offset = data;
   
-  sem_wait(&(state.send_window_not_full)); //decrease the lock counter
 
   //haven't dealt with buf_len greater than MAX_LEN
   uint32_t plen = DEFAULT_HEADER_LEN + buf_len;
@@ -566,7 +565,8 @@ void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
   char* msg = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), seq,
                                 seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
                                 NULL, data_offset, buf_len);
-  
+
+  sem_wait(&(state.send_window_not_full)); //decrease the lock counter
   message_save_copy(&(slot->sending_buf), msg, plen); //every message being sent is also stored
   //haven't dealt with timeout;
 

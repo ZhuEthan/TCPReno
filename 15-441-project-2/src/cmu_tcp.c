@@ -50,6 +50,7 @@ int cmu_socket(cmu_socket_t *dst, int flag, int port, char *serverIP) {
   dst->timeout.timeout = 1000;
   dst->debug_file = fopen("./debug_file.txt", "w");
   pthread_mutex_init(&(dst->window.ack_lock), NULL);
+  sem_init(&(dst->window.send_window_not_full), 0, SWS);
 
   if (pthread_cond_init(&dst->wait_cond, NULL) != 0) {
     perror("ERROR condition variable not set\n");
