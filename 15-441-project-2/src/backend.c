@@ -172,10 +172,9 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
   if (flags == ACK_FLAG_MASK) {
     uint32_t ack_seq = get_ack(pkt);
     printf("received ACK_FLAG_MASK in deliverSWP with ack_seq %d\n", ack_seq);
-    printSWP(sock, "sender");
-    if (swp_in_window(ack_seq, state->last_ack_received+1, state->last_seq_sent+1)) {
-      printf("in ACK_FLAG_MASK ack_seq %d is between [%d, %d] the ack_seq should be identical to the upper range", 
-        ack_seq, state->last_ack_received+1, state->last_seq_sent+1);
+    if (swp_in_window(ack_seq, state->last_ack_received+1, state->last_seq_sent+2)) {
+      printf("in ACK_FLAG_MASK ack_seq %d is between [%d(last_ack_received), %d(last_seq_sent)] the ack_seq should be identical to the upper range\n", 
+        ack_seq, state->last_ack_received+1, state->last_seq_sent+2);
       do {
         struct send_q_slot* slot;
 
@@ -185,8 +184,10 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
         //printf("message destroy successfully last_ack_received %d\n", state->last_ack_received);
         sem_post(&state->send_window_not_full); // release lock
       } while (state->last_ack_received != ack_seq);
+      printSWP(sock, "sender");
     } else {
-      printf("in ACK_FLAG_MASK ack_seq %d is not between [%d, %d]\n", ack_seq, state->last_ack_received+1, state->last_seq_sent+1);
+      printf("in ACK_FLAG_MASK ack_seq %d is not between [%d(last_ack_received), %d(last_seq_sent)], the ack_seq should be identical to the upper range\n", 
+        ack_seq, state->last_ack_received+1, state->last_seq_sent+2);
     }
   } else if (flags == NO_FLAG) {// data
     //receiver of the data
@@ -196,7 +197,10 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     printf("received data request in deliverSWP, with data_seq %d\n", data_seq);
     slot = &state->recvQ[data_seq % RWS];
     if (!swp_in_window(data_seq, state->next_seq_expected, state->next_seq_expected + RWS - 1)) {
+      printf("data seq %d is not in range [%d, %d]\n", data_seq, state->next_seq_expected, state->next_seq_expected+RWS-1);
       return;
+    } else {
+      printf("data seq %d is in range [%d, %d]\n", data_seq, state->next_seq_expected, state->next_seq_expected+RWS-1);
     }
     message_save_copy(&slot->recv_buf, pkt, get_plen(pkt)); // server side: store the coming message data for furthur reading. 
     slot->received = TRUE;
@@ -224,6 +228,9 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
                               ACK_FLAG_MASK, 1, 0, NULL, NULL, 0); // the ack is the furthest seq it has received
       sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
              (struct sockaddr *)&(sock->conn), conn_len);
+      
+
+      printSWP(sock, "receiver");
       printf("send back ack with %d\n", state->next_seq_expected);
       message_destroy(&rsp);
     } else {
@@ -252,6 +259,7 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
                             ACK_FLAG_MASK | SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
+    printSWP(sock, "receiver");
     printf("send back SYN|ACK with %d(SYN), %d(ACK)\n", 500, seq+1);
     free(rsp);
   } else if (flags == (SYN_FLAG_MASK | ACK_FLAG_MASK)) {
@@ -276,10 +284,11 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
     printf("in SYN_FLAG_MASK/ACK_FLAG_MASK send back ack with %d\n", seq+1);
     //if (get_ack(pkt) > sock->window.last_ack_received) {
-    sock->window.last_ack_received = get_ack(pkt);
-    sock->window.last_seq_received = seq;
-    sock->window.next_seq_expected = seq + 1;
+    state->last_ack_received = get_ack(pkt);
+    state->last_seq_received = seq;
+    state->next_seq_expected = seq + 1;
     //}
+    printSWP(sock, "sender");
     free(rsp);
     //} else {
       //printf("seq %d is not in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
@@ -290,8 +299,8 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
 }
 
 void printSWP(cmu_socket_t *sock, char* clientName) {
-  printf("current sliding window of %s is last_ack_received %d, last_seq_received %d, last_seq_sent %d\n", 
-    clientName, sock->window.last_ack_received, sock->window.last_seq_received, sock->window.last_seq_sent);
+  printf("--------------current sliding window of %s is last_ack_received %d, last_seq_received %d, last_seq_sent %d, next_seq_expected %d\n", 
+    clientName, sock->window.last_ack_received, sock->window.last_seq_received, sock->window.last_seq_sent, sock->window.next_seq_expected);
 }
 
 /*
@@ -549,17 +558,18 @@ void tcp_init_handshake(cmu_socket_t *sock) {
 
 // doesn't resend yet
 void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
-  window_t state = sock->window;
+  window_t* state = &(sock->window);
   struct send_q_slot *slot;
   
   char* data_offset = data;
-  
 
   //haven't dealt with buf_len greater than MAX_LEN
   uint32_t plen = DEFAULT_HEADER_LEN + buf_len;
 
-  uint32_t seq = ++state.last_seq_sent;
-  slot = &state.sendQ[seq % SWS];
+  printSWP(sock, "sender in sendSWP1");
+  uint32_t seq = ++(state->last_seq_sent);
+  printSWP(sock, "sender in sendSWP2");
+  slot = &(state->sendQ[seq % SWS]);
 
   // map to the TCP package:
   // https://book.systemsapproach.org/e2e/tcp.html#segment-format
@@ -567,13 +577,14 @@ void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
                                 seq/*ignore*/, DEFAULT_HEADER_LEN, plen, NO_FLAG, 1, 0,
                                 NULL, data_offset, buf_len);
 
-  sem_wait(&(state.send_window_not_full)); //decrease the lock counter
+  sem_wait(&(state->send_window_not_full)); //decrease the lock counter
   message_save_copy(&(slot->sending_buf), msg, plen); //every message being sent is also stored
   //haven't dealt with timeout;
 
   size_t conn_len = sizeof(sock->conn);
   sendto(sock->socket, msg, plen, 0, (struct sockaddr *)&(sock->conn),
                conn_len);
+  printf("sendSWP data with seq %d\n", seq);
 }
 
 
