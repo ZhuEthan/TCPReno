@@ -293,6 +293,17 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     //} else {
       //printf("seq %d is not in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
     //}
+  } else if (flags == FIN_FLAG_MASK) {
+    printf("received FIN_FLAG_MASK in deliverSWP\n");
+    uint32_t seq = get_seq(pkt);
+    char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0/*ignore*/,
+                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                            ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+           (struct sockaddr *)&(sock->conn), conn_len);
+    printf("send back ack with number %d\n", seq+1);
+    sock->fin_received = seq;
+    free(rsp);
   }
 
   printf("end of deliverSWP\n");
