@@ -36,10 +36,24 @@ typedef struct {
 } swp_hdr;
 
 typedef struct {
+	long start_clock_timestamp;
 	long estimated_rtt;
 	long diviation;
 	long timeout;
 } tcp_timeout;
+
+typedef struct {
+	tcp_timeout timeout;
+	char* sending_buf;
+	uint32_t plen;
+	uint32_t start_seq;
+} send_slot;
+
+typedef struct {
+	int received;
+	char* recv_buf;
+	uint32_t plen;
+} receive_slot;
 
 typedef struct {
 	uint32_t last_seq_received; //LFR for receiver -- Last Byte Read
@@ -53,17 +67,10 @@ typedef struct {
 	uint32_t last_seq_sent; //LFS for sender -- Last Byte Sent
 	sem_t send_window_not_full;
 
-	struct send_q_slot {
-		tcp_timeout timeout;
-		char* sending_buf;
-		uint32_t start_seq;
-	} sendQ[SWS];
+	send_slot sendQ[SWS];
+	receive_slot recvQ[RWS];
 
 	uint32_t next_seq_expected; //NFE next frame expected for receiver -- Next Byte Expected, equal with the ack being sent in receive side
-	struct recv_q_slot {
-		int received;
-		char* recv_buf;
-	} recvQ[RWS];
 
 } window_t;
 
