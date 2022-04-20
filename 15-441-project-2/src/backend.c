@@ -9,6 +9,7 @@
  */
 int check_ack(cmu_socket_t *sock, uint32_t seq) {
   int result;
+  printf("ack received is %d\n", sock->window.last_ack_received);
   //while (pthread_mutex_lock(&(sock->window.ack_lock)) != 0)
     //;
   if (sock->window.last_ack_received > seq)
@@ -20,6 +21,7 @@ int check_ack(cmu_socket_t *sock, uint32_t seq) {
 }
 
 int check_fin(cmu_socket_t *sock) {
+  printf("fin_received is %d\n", sock->fin_received);
   if (sock->fin_received > 0) {
     return TRUE;
   }
@@ -175,22 +177,27 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
 
     //new ack should be at least 1 greater than last_ack_received, last_ack_received 
     if (swp_in_window(ack_seq, state->last_ack_received+1, state->last_seq_sent+1)) {
-      printf("in ACK_FLAG_MASK ack_seq %d is between [%d(last_ack_received), %d(last_seq_sent)] the ack_seq should be identical to the upper range\n", 
+      printf("in ACK_FLAG_MASK ack_seq %d is between [%d(last_ack_received+1), %d(last_seq_sent+1)] the ack_seq should be identical to the upper range\n", 
         ack_seq, state->last_ack_received+1, state->last_seq_sent+1);
       do {
         send_slot* slot;
 
-        slot = &(state->sendQ[++(state->last_ack_received) % SWS]);
+        slot = &(state->sendQ[(state->last_ack_received-1) % SWS]);
         //cancel timtout TODO;
+        printf("destory slot %d\n", state->last_ack_received-1);
         message_destroy_send(slot); 
+        state->last_ack_received += 1;
         //printf("message destroy successfully last_ack_received %d\n", state->last_ack_received);
         sem_post(&state->send_window_not_full); // release lock
       } while (state->last_ack_received != ack_seq);
+      
       printSWP(sock, "sender");
     } else {
-      printf("in ACK_FLAG_MASK ack_seq %d is not between [%d(last_ack_received), %d(last_seq_sent)], the ack_seq should be identical to the upper range\n", 
+      printf("in ACK_FLAG_MASK ack_seq %d is not between [%d(last_ack_received+1), %d(last_seq_sent+1)], the ack_seq should be identical to the upper range\n", 
         ack_seq, state->last_ack_received+1, state->last_seq_sent+1);
+      printQueueInfo(sock);
     }
+        
   } else if (flags == NO_FLAG) {// data
     //receiver of the data
     receive_slot* slot;
@@ -199,7 +206,17 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     printf("received data request in deliverSWP, with data_seq %d\n", data_seq);
     slot = &state->recvQ[data_seq % RWS];
     if (!swp_in_window(data_seq, state->next_seq_expected, state->next_seq_expected + RWS - 1)) {
-      printf("data seq %d is not in range [%d, %d]\n", data_seq, state->next_seq_expected, state->next_seq_expected+RWS-1);
+      printf("data seq %d is not in range [%d (next_seq_expected), %d (next_seq_expected + RWS - 1)]\n", data_seq, state->next_seq_expected, state->next_seq_expected+RWS-1);
+      if (data_seq < state->next_seq_expected) {
+        char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), data_seq/*ignore*/,
+                              state->next_seq_expected, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                              ACK_FLAG_MASK, 1, 0, NULL, NULL, 0); // the ack is the furthest seq it has received
+        sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+             (struct sockaddr *)&(sock->conn), conn_len);
+      
+        printSWP(sock, "receiver");
+        printf("data seq less than in next_seq_expected and send back ack with %d\n", state->next_seq_expected);
+      } 
       return;
     } else {
       printf("data seq %d is in range [%d, %d]\n", data_seq, state->next_seq_expected, state->next_seq_expected+RWS-1);
@@ -248,7 +265,6 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
       return;
     }*/
 
-    //message_save_copy(&slot->recv_buf, pkt, get_plen(pkt));
     slot->received = TRUE;
     state->next_seq_expected = seq + 1;
     state->last_seq_received = seq;
@@ -266,6 +282,7 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     printf("received SYN_FLAG_MASK/ACK_FLAG_MASK in deliverSWP (seq)%d, (ack)%d\n", get_seq(pkt), get_ack(pkt));
     // sender side double check
     uint32_t seq = get_seq(pkt);
+    uint32_t ack = get_ack(pkt);
 
     //if (swp_in_window(seq, state->last_ack_received+1, state->last_seq_sent+1)) {
     //printf("seq %d in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
@@ -284,7 +301,12 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
     printf("in SYN_FLAG_MASK/ACK_FLAG_MASK send back ack with %d\n", seq+1);
     //if (get_ack(pkt) > sock->window.last_ack_received) {
-    state->last_ack_received = get_ack(pkt);
+    state->last_ack_received = ack;
+
+    send_slot* slot = &(state->sendQ[(state->last_ack_received-1) % SWS]);
+    printf("destory slot %d\n", state->last_ack_received-1);
+    message_destroy_send(slot);
+
     state->last_seq_received = seq;
     state->next_seq_expected = seq + 1;
     //}
@@ -312,6 +334,7 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
 void printSWP(cmu_socket_t *sock, char* clientName) {
   printf("--------------current sliding window of %s is last_ack_received %d, last_seq_received %d, last_seq_sent %d, next_seq_expected %d\n", 
     clientName, sock->window.last_ack_received, sock->window.last_seq_received, sock->window.last_seq_sent, sock->window.next_seq_expected);
+  printQueueInfo(sock);
 }
 
 /*
@@ -611,9 +634,9 @@ void resendSweeper(cmu_socket_t *sock) {
          char* msg = slot->sending_buf;
          size_t conn_len = sizeof(sock->conn);
          sendto(sock->socket, msg, slot->plen, 0, (struct sockaddr *)&(sock->conn), conn_len);
+         printf("resent seq %d with number\n", seq);
        }
        slot = &(state->sendQ[++seq % SWS]);
-      //seq += 1
   }
 }
 
@@ -718,8 +741,9 @@ void *begin_backend(void *in) {
       free(data);
     } else
       pthread_mutex_unlock(&(dst->send_lock));
-
-
+    
+    resendSweeper(dst);
+    
     check_for_data(dst, NO_WAIT);
 
     while (pthread_mutex_lock(&(dst->recv_lock)) != 0)
