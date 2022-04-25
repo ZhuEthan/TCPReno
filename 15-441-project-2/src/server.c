@@ -86,6 +86,7 @@ int main(int argc, char **argv) {
 
     functionality(&socket);
 
+    printf("in main thread\n");
     if(cmu_close(&socket) < 0)
         exit(EXIT_FAILURE);
     return EXIT_SUCCESS;
