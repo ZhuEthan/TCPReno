@@ -326,10 +326,7 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     printf("send back ack with number %d\n", seq+1);
     sock->fin_received = seq;
     free(rsp);
-    while (pthread_mutex_lock(&(sock->death_lock)) != 0)
-      ;
-    sock->dying = TRUE;
-    pthread_mutex_unlock(&(sock->death_lock));
+    
   }
 
   printf("end of deliverSWP\n");
@@ -473,7 +470,7 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
       check_for_data(sock, TIMEOUT);
       //printf("fin_received %d\n", sock->fin_received);
       //printf("last ack received %d, original is %d\n", sock->window.last_ack_received, last_ack_received);
-      if (check_fin(sock)) { //&& check_ack(sock, last_ack_received)) { Don't check the last ACK
+      if (check_fin(sock) && check_ack(sock, last_ack_received)) { 
         break;
       }
       //printf("waiting for ack and fin\n");
@@ -765,7 +762,7 @@ void *begin_backend(void *in) {
   }
 
   tcp_teardown_handshake(dst);
-  printf("I am here\n");
+  //printf("I am here\n");
   pthread_exit(NULL);
   return NULL;
 }
