@@ -21,6 +21,7 @@ void functionality(cmu_socket_t  * sock){
     cmu_write(sock, "hi there5 from client", 22);
     cmu_write(sock, "hi there6 from client", 22);
     n = cmu_read(sock, buf, 200, NO_FLAG);
+    printf("client: n is number %d\n", n);
     for(int i = 0; i < n; i++) {
         printf("%c", buf[i]);
     }
@@ -34,14 +35,16 @@ void functionality(cmu_socket_t  * sock){
     }
     printf("\n");
     read = cmu_read(sock, buf, 200, NO_WAIT);
-    printf("Read: %d\n", read);
+    printf("Client Read: %d\n", read);
 
     fp = fopen("/vagrant/15-441-project-2/src/cmu_tcp.c", "rb");
     read = 1;
     while(read > 0){
         read = fread(buf, 1, 2000, fp);
-        if(read > 0)
+        if(read > 0) {
+            printf("Client reading file\n");
             cmu_write(sock, buf, read);
+        }
     }
     
 }

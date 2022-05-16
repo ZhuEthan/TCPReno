@@ -29,28 +29,32 @@ void functionality(cmu_socket_t  * sock){
     int n;
     n = cmu_read(sock, buf, 200, NO_FLAG);
     //printf("R: %s\n", buf);
-    printf("R: ");
+    printf("server R1: ");
     for(int i = 0; i < n; i++) {
         printf("%c", buf[i]);
     }
     printf("\n");
-    printf("N: %d\n", n);
+    printf("first N: %d\n", n);
     cmu_write(sock, "hi there from server1", 22);
-    cmu_read(sock, buf, 200, NO_FLAG);
+    n = cmu_read(sock, buf, 200, NO_FLAG);
+    for (int i = 0; i < n; i++) {
+        printf("%c", buf[i]);
+    }
+    printf("\n");
     cmu_write(sock, "hi there from server2", 22);
 
-    sleep(5);
+    // didn't finish; supposed to receive the client reading file
     n = cmu_read(sock, buf, 9898, NO_FLAG);
-    printf("R: ");
+    printf("server R2: ");
     for(int i = 0; i < n; i++) {
         printf("%c", buf[i]);
     }
     printf("\n");
-    printf("N: %d\n", n);
+    printf("server second N: %d\n", n);
     fp = fopen("/vagrant/15-441-project-2/tests/file.c", "w+");
     //each item 1 bytes, n items. 
     fwrite(buf, 1, n, fp);
-
+    fclose(fp);
 }
 
 
@@ -85,6 +89,7 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
 
     functionality(&socket);
+    printf("the server function is ending\n");
 
     if(cmu_close(&socket) < 0)
         exit(EXIT_FAILURE);

@@ -293,7 +293,6 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
     //  //message_destroy(&(slot->sending_buf));
     //  sem_post(&state->send_window_not_full);
     //} while (state->last_ack_received != seq);
-
     
     char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 500/*ignore*/, 
                         seq+1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN, 
@@ -638,6 +637,7 @@ void resendSweeper(cmu_socket_t *sock) {
          printf("resent seq %d with number\n", seq);
        }
        slot = &(state->sendQ[++seq % SWS]);
+       printf("in the resent loop\n");
   }
 }
 
@@ -722,6 +722,7 @@ void *begin_backend(void *in) {
     while (pthread_mutex_lock(&(dst->death_lock)) != 0)
       ;
     death = dst->dying;
+    
     pthread_mutex_unlock(&(dst->death_lock));
 
     while (pthread_mutex_lock(&(dst->send_lock)) != 0)
