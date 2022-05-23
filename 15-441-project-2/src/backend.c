@@ -246,7 +246,6 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
                               ACK_FLAG_MASK, 1, 0, NULL, NULL, 0); // the ack is the furthest seq it has received
       sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
              (struct sockaddr *)&(sock->conn), conn_len);
-      
 
       printSWP(sock, "receiver");
       printf("send back ack with %d\n", state->next_seq_expected);
@@ -604,7 +603,6 @@ void sendSWP(cmu_socket_t *sock, char* data, int buf_len) {
 
   printSWP(sock, "sender in sendSWP1");
   uint32_t seq = ++(state->last_seq_sent);
-  printSWP(sock, "sender in sendSWP2");
   slot = &(state->sendQ[seq % SWS]);
 
   // map to the TCP package:
@@ -729,7 +727,7 @@ void *begin_backend(void *in) {
       ;
     buf_len = dst->sending_len;
 
-    if (death && buf_len == 0)
+    if (death && buf_len == 0 && dst->window.last_ack_received > dst->window.last_seq_sent)
       break;
 
     if (buf_len > 0) {
