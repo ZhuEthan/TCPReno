@@ -314,17 +314,34 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
       //printf("seq %d is not in swp [%d, %d]\n", seq, state->last_ack_received+1, state->last_seq_sent+1);
     //}
   } else if (flags == FIN_FLAG_MASK) {
-    printf("received FIN_FLAG_MASK in deliverSWP\n");
-    uint32_t seq = get_seq(pkt);
+    uint32_t fin_seq = get_seq(pkt);
+    printf("received FIN_FLAG_MASK in deliverSWP %d\n", fin_seq);
+
+    char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 
+                            sock->window.last_ack_received/*ignore*/,
+                            fin_seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                            FIN_FLAG_MASK|ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+    sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
+           (struct sockaddr *)&(sock->conn), conn_len);
+    printf("send back fin and ack with number %d, %d\n", sock->window.last_ack_received, fin_seq+1);
+    sock->fin_received = fin_seq;
+    sock->window.last_seq_sent = sock->window.last_ack_received;
+    sock->window.last_seq_received = fin_seq;
+    free(rsp);
+    
+  } else if (flags == (FIN_FLAG_MASK | ACK_FLAG_MASK)) {
+    //TODO: finish this logic
+    uint32_t ack_seq = get_ack(pkt);
+    uint32_t fin_seq = get_seq(pkt);
+    printf("received FIN_FLAG_MASK | ACK_FLAG_MASK with %d, %d\n", fin_seq, ack_seq);
     char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 0/*ignore*/,
-                            seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
+                            fin_seq + 1, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                             ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
-    printf("send back ack with number %d\n", seq+1);
-    sock->fin_received = seq;
-    free(rsp);
-    
+    sock->fin_received = get_seq(pkt);
+    sock->window.last_ack_received = ack_seq;
+    printf("send back ACK with seq %d\n", fin_seq+1);
   }
 
   printf("end of deliverSWP\n");
@@ -479,20 +496,29 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
       check_for_data(sock, TIMEOUT); // TODO: change to two segment lifetimes. 
       struct timeval cur_time = get_time_stamp();
       struct timeval elapsed_time = elapsed_time_seconds(start_time, cur_time);
-      if (timeval_to_usecs(elapsed_time) > 1000000) {
+      if (timeval_to_usecs(elapsed_time) > 3000000) {
         break;
       }
     }
-  } else { // already received fin, right side of the textbook graph. 
+  } 
+  //TODO: should be removed as the sending logic has been replaced by sending ACK|FIN together in the diliverSWP method
+  else { // already received fin, right side of the textbook graph. 
     printf("passively finish the connection\n");
     while (TRUE) {
-      sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
-      sock->window.last_seq_sent = last_ack_received;
-      printf("passively send fin package with seq number %d, last_ack_received is %d\n", last_ack_received, sock->window.last_ack_received);
+      //sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+      //sock->window.last_seq_sent = last_ack_received;
+      //printf("passively send fin package with seq number %d, last_ack_received is %d\n", last_ack_received, sock->window.last_ack_received);
+      printf("waiting for ack of ACK+FIN\n");
       check_for_data(sock, TIMEOUT);
       if (check_ack(sock, last_ack_received)) {
         break;
       }
+      printf("send ACK|FIN with ack %d and fin %d\n", sock->window.last_ack_received, sock->fin_received+1);
+      char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), 
+              sock->window.last_ack_received/*ignore*/, sock->fin_received+1, DEFAULT_HEADER_LEN, 
+              DEFAULT_HEADER_LEN, FIN_FLAG_MASK|ACK_FLAG_MASK, 1, 0, NULL, NULL, 0);
+      sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
+      sock->window.last_seq_sent = sock->window.last_ack_received;
     }
   }
 
