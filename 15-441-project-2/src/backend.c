@@ -222,6 +222,8 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
       printf("data seq %d is in range [%d, %d]\n", data_seq, state->next_seq_expected, state->next_seq_expected+RWS-1);
     }
     message_save_copy_receive(slot, pkt, get_plen(pkt)); // server side: store the coming message data for furthur reading. 
+    sock->window.last_seq_received = 
+        (data_seq > sock->window.last_seq_received ? data_seq : sock->window.last_seq_received);
 
     if (data_seq == state->next_seq_expected) {
       printf("data_seq %d is equal with state->next_seq_expected in NO_FLAG\n", data_seq);
@@ -244,8 +246,7 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
       char* rsp = create_packet_buf(sock->my_port, ntohs(sock->conn.sin_port), data_seq/*ignore*/,
                               state->next_seq_expected, DEFAULT_HEADER_LEN, DEFAULT_HEADER_LEN,
                               ACK_FLAG_MASK, 1, 0, NULL, NULL, 0); // the ack is the furthest seq it has received
-      sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
-             (struct sockaddr *)&(sock->conn), conn_len);
+      sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
 
       printSWP(sock, "receiver");
       printf("send back ack with %d\n", state->next_seq_expected);
@@ -496,7 +497,7 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
       check_for_data(sock, TIMEOUT); // TODO: change to two segment lifetimes. 
       struct timeval cur_time = get_time_stamp();
       struct timeval elapsed_time = elapsed_time_seconds(start_time, cur_time);
-      if (timeval_to_usecs(elapsed_time) > 3000000) {
+      if (timeval_to_usecs(elapsed_time) > 1000000) {
         break;
       }
     }
@@ -652,6 +653,7 @@ void resendSweeper(cmu_socket_t *sock) {
   uint32_t seq = state->last_ack_received;
   send_slot *slot = &(state->sendQ[seq%SWS]);
 
+//TODO: 501 is not being resent as expected
   while (!is_sending_slot_empty(slot) && swp_in_window(seq, state->last_ack_received, state->last_seq_sent)/*seq-state->last_ack_received<=SWS*/) {
       //resend
        if (is_timeout(slot->timeout)) {
