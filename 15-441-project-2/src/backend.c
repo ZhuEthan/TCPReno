@@ -275,6 +275,8 @@ void deliverSWP(cmu_socket_t *sock, char *pkt) {
                             ACK_FLAG_MASK | SYN_FLAG_MASK, 1, 0, NULL, NULL, 0);
     sendto(sock->socket, rsp, DEFAULT_HEADER_LEN, 0,
            (struct sockaddr *)&(sock->conn), conn_len);
+    send_slot* sending_slot = &sock->window.sendQ[500 % SWS];
+    message_save_copy_send(sending_slot, rsp, DEFAULT_HEADER_LEN);
     printSWP(sock, "receiver");
     printf("send back SYN|ACK with %d(SYN), %d(ACK)\n", 500, seq+1);
     free(rsp);
@@ -492,6 +494,7 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
       //printf("waiting for ack and fin\n");
     }
     struct timeval start_time = get_time_stamp();
+    //it must wait for a while if the ack of the FIN/ACK is lost
     while (TRUE) {
       printf("in the closing phase\n");
       check_for_data(sock, TIMEOUT); // TODO: change to two segment lifetimes. 
@@ -501,9 +504,7 @@ void tcp_teardown_handshake(cmu_socket_t *sock) {
         break;
       }
     }
-  } 
-  //TODO: should be removed as the sending logic has been replaced by sending ACK|FIN together in the diliverSWP method
-  else { // already received fin, right side of the textbook graph. 
+  } else { // already received fin, right side of the textbook graph. 
     printf("passively finish the connection\n");
     while (TRUE) {
       //sendto(sock->socket, pkt, DEFAULT_HEADER_LEN, 0, (struct sockaddr *)&(sock->conn), conn_len);
@@ -653,9 +654,10 @@ void resendSweeper(cmu_socket_t *sock) {
   uint32_t seq = state->last_ack_received;
   send_slot *slot = &(state->sendQ[seq%SWS]);
 
-//TODO: 501 is not being resent as expected
+  //TODO: 501 is not being resent as expected
+  //last_ack_received is 0
   while (!is_sending_slot_empty(slot) && swp_in_window(seq, state->last_ack_received, state->last_seq_sent)/*seq-state->last_ack_received<=SWS*/) {
-      //resend
+       //resend
        if (is_timeout(slot->timeout)) {
          char* msg = slot->sending_buf;
          size_t conn_len = sizeof(sock->conn);
